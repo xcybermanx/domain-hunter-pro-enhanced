@@ -1,7 +1,7 @@
 {
   "name": "domain-hunter-pro-enhanced",
   "version": "2.0.0",
-  "description": "Professional domain research tool with Node.js backend and interactive frontend",
+  "description": "Professional domain research tool with AI generator and advanced monitoring",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -14,14 +14,16 @@
     "dns",
     "domain-checker",
     "portfolio",
-    "watchlist"
+    "watchlist",
+    "ai-generator",
+    "subdomain-monitoring"
   ],
   "author": "xcybermanx",
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
-    "whois-json": "^2.0.6"
+    "multer": "^1.4.5-lts.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
