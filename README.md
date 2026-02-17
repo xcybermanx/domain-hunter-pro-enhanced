@@ -1,157 +1,162 @@
-# 🎯 Domain Hunter Pro Enhanced - Professional Edition
+# 🤖 Domain Hunter Pro Enhanced - AI Edition
 
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Version](https://img.shields.io/badge/version-2.0.0-orange)](package.json)
+[![AI Powered](https://img.shields.io/badge/AI-Powered-red)](README.md)
 
-A professional Node.js-based domain research platform with real-time DNS checking, JSON database storage, and interactive management dashboard.
+A professional AI-powered domain research platform with intelligent domain generation, real-time monitoring, subdomain discovery, and advanced filtering.
 
-![Domain Hunter Pro](https://via.placeholder.com/800x400/667eea/ffffff?text=Domain+Hunter+Pro+Enhanced)
+## 🌟 New Features (v2.0)
 
-## ✨ Key Features
+### 🤖 AI Domain Generator
+- **Geo-Domain Generation**: Intelligent city + country combinations
+- **Realistic Business Names**: AI-powered realistic domain suggestions
+- **Custom Keywords**: Generate domains based on your keywords
+- **Bulk Generation**: Create 5-100 domains instantly
+
+### 📤 Bulk File Upload
+- Upload CSV/TXT files with domain lists
+- Automatic parsing and validation
+- Support for multiple formats
+
+### 🔍 Advanced Filtering
+- **Filter by expiration days**: 7, 30, 90, 180 days
+- **Keyword search**: Find domains containing specific words
+- **Registrar filter**: Filter by GoDaddy, Namecheap, etc.
+- **Availability filter**: Available or taken domains
+- **Premium filter**: Premium domains only
+
+### 🌐 Subdomain Monitoring
+- Automatic subdomain discovery
+- Track all found subdomains
+- Filter by parent domain
+- Monitor last check dates
+
+### 💼 Enhanced Portfolio
+- Registrar tracking
+- Custom notes per domain
+- Investment tracking
+- Purchase date logging
+
+## ✨ Core Features
 
 ### Backend (Node.js + Express)
-- ✅ **Real DNS Resolution**: Actual domain availability checking
-- ✅ **JSON Database**: Persistent storage with auto-creation
-- ✅ **Smart Caching**: 24-hour cache to reduce API calls
-- ✅ **RESTful API**: Clean endpoints for all operations
-- ✅ **Bulk Operations**: Check multiple domains simultaneously
-- ✅ **Auto-Save**: All scans automatically stored
+- ✅ Real DNS Resolution
+- ✅ JSON Database with auto-creation
+- ✅ Smart 24-hour caching
+- ✅ RESTful API architecture
+- ✅ Bulk operations support
+- ✅ File upload handling (multer)
 
 ### Frontend (Modern Interactive UI)
-- ✅ **Live Dashboard**: Real-time statistics
-- ✅ **Bulk Scanner**: Check multiple domains at once
-- ✅ **Watchlist Manager**: Track domains automatically
-- ✅ **Portfolio Tracker**: Manage investments
-- ✅ **Export/Import**: Full data backup
-- ✅ **Responsive Design**: Works on all devices
-
-### Core Capabilities
-- 🔍 **Domain Scanning**: DNS-based availability checking
-- 📅 **Expiration Tracking**: Auto-calculate days until expiration
-- 💎 **Premium Detection**: Identify valuable domains
-- 📊 **Statistics Dashboard**: Track all metrics
-- 💾 **Data Persistence**: JSON file storage
+- ✅ 6 specialized tabs
+- ✅ Live statistics dashboard
+- ✅ Real-time updates
+- ✅ Responsive design
+- ✅ Professional animations
 
 ## 🚀 Quick Start
 
-### Prerequisites
-```bash
-Node.js >= 16.0.0
-npm or yarn
-```
-
 ### Installation
 
-1. **Clone the repository**
 ```bash
+# Clone repository
 git clone https://github.com/xcybermanx/domain-hunter-pro-enhanced.git
 cd domain-hunter-pro-enhanced
-```
 
-2. **Install dependencies**
-```bash
+# Install dependencies
 npm install
-```
 
-3. **Start the server**
-```bash
+# Start server
 npm start
 ```
 
-4. **Open your browser**
+### Access Application
 ```
 http://localhost:3000
 ```
 
-That's it! The application will automatically:
-- Create the `data` folder
-- Initialize `domains.json` database
-- Start the Express server
-- Serve the frontend
+## 📊 Dashboard Statistics
 
-### Development Mode
-```bash
-npm run dev
-```
-Uses nodemon for auto-restart on file changes.
+- **Total Scans**: Number of domains checked
+- **Available Domains**: Domains ready to register
+- **Expiring (7d)**: Domains expiring within 7 days
+- **Premium Domains**: High-value domains detected
+- **Total Subdomains**: Discovered subdomains
+- **Total Investment**: Portfolio value
 
-## 📁 Project Structure
+## 🛠️ API Documentation
 
-```
-domain-hunter-pro-enhanced/
-├── server.js              # Node.js backend server
-├── package.json           # Dependencies and scripts
-├── .env.example          # Environment variables template
-├── .gitignore            # Git exclusions
-├── README.md             # This file
-├── public/
-│   └── index.html        # Frontend application
-└── data/
-    └── domains.json      # JSON database (auto-created)
-```
-
-## 🔌 API Documentation
-
-### Base URL
-```
-http://localhost:3000/api
-```
-
-### Endpoints
-
-#### Health Check
+### AI Domain Generator
 ```http
-GET /api/health
-```
-Returns server status and timestamp.
-
-#### Check Single Domain
-```http
-POST /api/check-domain
+POST /api/generate-domains
 Content-Type: application/json
 
 {
-  "domain": "example.com"
+  "type": "geo",           // "geo", "realistic", "mixed"
+  "keywords": ["tech", "shop"],
+  "count": 20
 }
 ```
 
-#### Check Multiple Domains
-```http
-POST /api/check-bulk
-Content-Type: application/json
-
+**Response:**
+```json
 {
-  "domains": ["example.com", "test.com", "awesome.io"]
+  "domains": ["newyorktech.com", "parisshop.io", ...],
+  "count": 20
 }
 ```
 
-#### Get Watchlist
+### Bulk File Upload
 ```http
-GET /api/watchlist
+POST /api/upload-domains
+Content-Type: multipart/form-data
+
+file: domains.txt
 ```
 
-#### Add to Watchlist
-```http
-POST /api/watchlist
-Content-Type: application/json
-
+**Response:**
+```json
 {
-  "domain": "example.com"
+  "domains": ["example.com", "test.com", ...],
+  "count": 150
 }
 ```
 
-#### Remove from Watchlist
+### Advanced Filtering
 ```http
-DELETE /api/watchlist/:domain
+GET /api/domains/filter?days=30&keyword=tech&registrar=godaddy&available=true&premium=false
 ```
 
-#### Get Portfolio
-```http
-GET /api/portfolio
+**Response:**
+```json
+{
+  "domains": [...],
+  "count": 15
+}
 ```
 
-#### Add to Portfolio
+### Subdomain Discovery
+```http
+GET /api/subdomains?domain=example.com&days=7
+```
+
+**Response:**
+```json
+{
+  "subdomains": [
+    {
+      "subdomain": "www.example.com",
+      "exists": true,
+      "lastChecked": 1708176000000
+    }
+  ],
+  "count": 1
+}
+```
+
+### Enhanced Portfolio
 ```http
 POST /api/portfolio
 Content-Type: application/json
@@ -159,32 +164,109 @@ Content-Type: application/json
 {
   "domain": "example.com",
   "price": 100,
-  "notes": "Great investment"
+  "registrar": "GoDaddy",
+  "notes": "Investment domain"
 }
 ```
 
-#### Get Statistics
-```http
-GET /api/stats
+## 🎨 Features Guide
+
+### 1. AI Domain Generator
+
+**Geo-Domains:**
+- Combines cities with keywords
+- Country + business terms
+- Location-based domains
+
+Examples:
+- `newyorktech.com`
+- `parisshop.io`
+- `tokyohub.app`
+
+**Realistic Domains:**
+- Business-ready names
+- Professional combinations
+- Market-tested patterns
+
+Examples:
+- `getmarketpro.com`
+- `cloudtechonline.io`
+- `bestshophub.com`
+
+### 2. Bulk Domain Scanner
+
+1. Enter domains (one per line)
+2. Enable "Discover Subdomains" for deep scan
+3. Click "Check Domains"
+4. View results with:
+   - Availability status
+   - Registrar information
+   - Expiration dates
+   - Days left
+   - Premium indicators
+
+### 3. Bulk File Upload
+
+**Supported Formats:**
+- Plain text (.txt)
+- CSV files (.csv)
+- One domain per line
+- Comma, semicolon, or tab separated
+
+**Example File:**
+```
+example.com
+test.com
+awesome-domain.io
 ```
 
-#### Export Data
-```http
-GET /api/export
-```
-Downloads complete database as JSON file.
+### 4. Advanced Filtering
 
-#### Import Data
-```http
-POST /api/import
-Content-Type: application/json
+**Filter Combinations:**
 
-{ /* complete database object */ }
 ```
+Expiring in 30 days + Available + Premium
+→ Find premium domains about to expire
+
+Keyword "tech" + Registrar "GoDaddy"
+→ Find tech domains at specific registrar
+
+Expiring in 7 days + Not Premium
+→ Find affordable expiring domains
+```
+
+### 5. Subdomain Monitor
+
+**Automatic Discovery:**
+When checking domains with "Discover Subdomains" enabled, the system checks:
+- www
+- mail
+- ftp
+- admin
+- blog
+- shop
+- api
+- dev
+- staging
+- test
+
+**Tracking:**
+- All found subdomains stored
+- Last check timestamp
+- Filter by parent domain
+- Filter by check date
+
+### 6. Enhanced Portfolio
+
+**Track:**
+- Domain names
+- Purchase prices
+- Registrar information
+- Custom notes
+- Purchase dates
+- Total investment value
 
 ## 💾 Database Structure
-
-The application uses `data/domains.json`:
 
 ```json
 {
@@ -194,11 +276,19 @@ The application uses `data/domains.json`:
       "available": false,
       "hasDNS": true,
       "expirationDate": "2025-12-31T00:00:00.000Z",
+      "creationDate": "2020-01-01T00:00:00.000Z",
       "daysLeft": 365,
       "registrar": "GoDaddy",
       "nameServers": ["ns1.example.com"],
       "premium": false,
-      "lastChecked": 1708176000000
+      "lastChecked": 1708176000000,
+      "subdomains": [
+        {
+          "subdomain": "www.example.com",
+          "exists": true,
+          "lastChecked": 1708176000000
+        }
+      ]
     }
   ],
   "watchlist": ["example.com"],
@@ -207,13 +297,19 @@ The application uses `data/domains.json`:
       "id": "1708176000000",
       "domain": "mydomain.com",
       "price": 100,
+      "registrar": "Namecheap",
       "notes": "Investment",
       "dateAdded": "2024-02-17T00:00:00.000Z"
     }
   ],
-  "cache": {
-    "example.com": { /* domain data */ }
-  },
+  "subdomains": [
+    {
+      "subdomain": "www.example.com",
+      "exists": true,
+      "lastChecked": 1708176000000
+    }
+  ],
+  "cache": {},
   "stats": {
     "totalScans": 150,
     "totalDomains": 45,
@@ -223,96 +319,85 @@ The application uses `data/domains.json`:
 }
 ```
 
-## 🎨 Features In Detail
+## 🎯 Use Cases
 
-### Domain Scanner
-- Enter multiple domains (one per line)
-- Real-time DNS checking
-- Automatic cache lookup
-- Premium domain detection
-- Expiration date calculation
-- Results table with all details
+### 1. Domain Investor
+```
+1. Generate 50 geo-domains with AI
+2. Filter by "Available" + "Premium"
+3. Check expiration dates
+4. Add valuable finds to portfolio
+5. Track investment with registrar info
+```
 
-### Watchlist
-- Auto-add all scanned domains
-- View status of tracked domains
-- Remove unwanted domains
-- Bulk refresh functionality
+### 2. SEO Professional
+```
+1. Upload client domain list
+2. Enable subdomain discovery
+3. Monitor all subdomains
+4. Filter by expiring in 30 days
+5. Plan renewal strategy
+```
 
-### Portfolio Manager
-- Add purchased domains
-- Track investment amounts
-- Add notes for each domain
-- Calculate total investment
-- View purchase dates
+### 3. Business Owner
+```
+1. Generate realistic business names
+2. Filter by keyword (your industry)
+3. Check availability
+4. Compare registrar pricing
+5. Add chosen domain to portfolio
+```
 
-### Statistics Dashboard
-- Total scans performed
-- Available domains count
-- Premium domains count
-- Total investment value
+### 4. Domain Researcher
+```
+1. Use advanced filters
+2. Find domains expiring soon
+3. Filter by specific registrars
+4. Discover premium opportunities
+5. Track trends over time
+```
 
 ## ⚙️ Configuration
 
-### Port Configuration
-Change port in `server.js` or use environment variable:
+### AI Generator Customization
+
+Edit `server.js` to customize AI patterns:
+
 ```javascript
-const PORT = process.env.PORT || 3000;
+const CITIES = ['new', 'san', 'los', 'miami', 'tokyo', ...];
+const COUNTRIES = ['usa', 'canada', 'france', ...];
+const PREFIXES = ['best', 'top', 'pro', 'my', ...];
+const KEYWORDS = ['web', 'tech', 'digital', ...];
+const TLDS = ['.com', '.net', '.org', '.io', ...];
 ```
 
-Or create `.env` file:
-```
-PORT=8080
-```
+### Subdomain Discovery
 
-### Cache Duration
-Modify cache expiration (default 24 hours):
-```javascript
-if (cacheAge < 86400000) { // 24 hours in milliseconds
-```
+Add custom subdomains to check:
 
-### Premium Detection Rules
-Customize in `server.js`:
 ```javascript
-function isPremiumDomain(domain) {
-    const indicators = [
-        domain.length <= 4,              // Short domains
-        /^[a-z]{3}\.(com|net|org)$/.test(domain),  // 3-letter
-        /\.(io|ai|app|tech|dev)$/.test(domain)      // Premium TLDs
-    ];
-    return indicators.some(i => i);
-}
+const commonSubdomains = [
+    'www', 'mail', 'ftp', 'admin', 'blog',
+    'shop', 'api', 'dev', 'staging', 'test',
+    // Add your custom subdomains here
+    'app', 'cdn', 'media', 'static'
+];
 ```
 
 ## 🚢 Deployment
 
 ### Heroku
 ```bash
-heroku login
-heroku create your-app-name
+heroku create domain-hunter-pro
 git push heroku main
 ```
 
 ### Vercel
 ```bash
-npm i -g vercel
-vercel
+vercel --prod
 ```
 
-### DigitalOcean / AWS / VPS
-```bash
-# Upload files
-npm install --production
-
-# Using PM2
-npm install -g pm2
-pm2 start server.js --name domain-hunter
-pm2 save
-pm2 startup
-```
-
-### Docker (Optional)
-Create `Dockerfile`:
+### Docker
 ```dockerfile
 FROM node:16-alpine
 WORKDIR /app
@@ -325,135 +410,116 @@ CMD ["node", "server.js"]
 
 ```bash
 docker build -t domain-hunter .
-docker run -p 3000:3000 domain-hunter
+docker run -p 3000:3000 -v $(pwd)/data:/app/data domain-hunter
 ```
 
 ## 🔐 Security Best Practices
 
-1. **Rate Limiting**: Add express-rate-limit
-2. **Authentication**: Implement user auth for production
-3. **HTTPS**: Always use SSL in production
-4. **Input Validation**: Already implemented basic validation
-5. **CORS**: Configure for specific domains
+1. **Rate Limiting** - Implement for production
+2. **API Authentication** - Add JWT tokens
+3. **File Upload Validation** - Strict file type checking
+4. **Input Sanitization** - Already basic validation
+5. **HTTPS** - Always use SSL in production
 
-### Example Rate Limiting
-```bash
-npm install express-rate-limit
-```
+## 📊 Performance Tips
 
-```javascript
-const rateLimit = require('express-rate-limit');
-
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100
-});
-
-app.use('/api/', limiter);
-```
-
-## 🔧 Advanced Usage
-
-### Using Real WHOIS API
-Replace simulated WHOIS with real API:
-
-```javascript
-// Install whois package
-npm install whois-json
-
-const whois = require('whois-json');
-
-async function getWhoisInfo(domain) {
-    const result = await whois(domain);
-    return {
-        expirationDate: result['Registry Expiry Date'],
-        registrar: result['Registrar'],
-        nameServers: result['Name Server'],
-        status: result['Domain Status']
-    };
-}
-```
-
-### Adding Email Notifications
-```bash
-npm install nodemailer
-```
-
-### MongoDB Integration
-```bash
-npm install mongoose
-```
+1. **Cache Management**: 24-hour auto-cache
+2. **Bulk Operations**: Process 50+ domains efficiently
+3. **File Upload Limits**: Configure max file size
+4. **Database Optimization**: Consider MongoDB for 10k+ domains
+5. **CDN Integration**: Serve static files faster
 
 ## 🐛 Troubleshooting
 
-### Port Already in Use
+### "Cannot upload file"
 ```bash
-# Find and kill process
-lsof -ti:3000 | xargs kill -9
-
-# Or use different port
-PORT=8080 npm start
+# Create uploads directory
+mkdir uploads
+chmod 755 uploads
 ```
 
-### Database Not Created
-Ensure write permissions:
+### "AI generator not working"
 ```bash
-chmod 755 .
-mkdir data
+# Check server logs
+npm start
+# Look for error messages
 ```
 
-### DNS Lookup Fails
-- Check internet connection
-- Some domains may not resolve
-- Use fallback WHOIS API for production
+### "Subdomain discovery fails"
+- Check DNS resolution
+- Verify internet connection
+- Some domains may block subdomain enumeration
 
-## 📈 Future Enhancements
+## 🚀 Future Enhancements
 
-- [ ] User authentication system
-- [ ] MongoDB integration
 - [ ] Real WHOIS API integration
-- [ ] Email notifications for expiring domains
-- [ ] Scheduled monitoring
-- [ ] Domain valuation API
-- [ ] GoDaddy/Namecheap API integration
-- [ ] Mobile app version
-- [ ] Advanced analytics
-- [ ] Multi-user support
+- [ ] Machine learning domain valuation
+- [ ] Email alerts for expiring domains
+- [ ] Scheduled automated checking
+- [ ] Domain auction monitoring
+- [ ] Price history tracking
+- [ ] Competitor analysis
+- [ ] Chrome extension
+- [ ] Mobile app (React Native)
+- [ ] Multi-user support with authentication
+- [ ] Advanced AI with GPT integration
+- [ ] Backlink analysis
+- [ ] SEO metrics integration
 
 ## 🤝 Contributing
 
-Contributions are welcome!
+Contributions welcome!
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+MIT License - See LICENSE file
 
 ## 👨‍💻 Author
 
 **xcybermanx**
 - GitHub: [@xcybermanx](https://github.com/xcybermanx)
+- Repository: [domain-hunter-pro-enhanced](https://github.com/xcybermanx/domain-hunter-pro-enhanced)
 
 ## 🙏 Acknowledgments
 
-- Express.js for the backend framework
+- Express.js for backend framework
+- Multer for file uploads
 - Font Awesome for beautiful icons
-- Node.js community
+- Node.js DNS module
+- Open source community
 
-## 📧 Support
+## 💬 Support
 
 For issues or questions:
-- Open an issue on GitHub
-- Check existing issues for solutions
-- Read the documentation carefully
+- Open GitHub issue
+- Check documentation
+- Review existing issues
 
 ---
 
 **⭐ Star this repository if you find it helpful!**
 
-**Made with ❤️ for domain hunters and investors**
+**Made with ❤️ and 🤖 AI for domain hunters worldwide**
+
+## 📝 Changelog
+
+### v2.0.0 (Latest)
+- ✨ Added AI domain generator (geo + realistic)
+- 📤 Added bulk file upload support
+- 🔍 Added advanced filtering system
+- 🌐 Added subdomain discovery & monitoring
+- 💼 Enhanced portfolio with registrar tracking
+- ⏰ Added expiration day filters
+- 📊 Added comprehensive statistics
+
+### v1.0.0
+- ✅ Initial release
+- ✅ Basic domain checking
+- ✅ Simple watchlist
+- ✅ Portfolio management
