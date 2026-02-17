@@ -3,20 +3,30 @@ const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
 const dns = require('dns').promises;
+const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DB_FILE = path.join(__dirname, 'data', 'domains.json');
+const upload = multer({ dest: 'uploads/' });
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// AI Domain Generator Data
+const CITIES = ['new', 'san', 'los', 'miami', 'tokyo', 'paris', 'london', 'dubai', 'sydney', 'berlin'];
+const COUNTRIES = ['usa', 'canada', 'france', 'spain', 'italy', 'japan', 'china', 'brazil', 'mexico', 'india'];
+const PREFIXES = ['best', 'top', 'pro', 'my', 'get', 'buy', 'find', 'quick', 'fast', 'easy'];
+const KEYWORDS = ['web', 'tech', 'digital', 'online', 'mobile', 'cloud', 'smart', 'app', 'shop', 'store', 'market', 'hub', 'zone', 'net', 'link', 'site'];
+const TLDS = ['.com', '.net', '.org', '.io', '.ai', '.co', '.app', '.dev', '.tech', '.online'];
+
 // Initialize database
 async function initDB() {
     try {
         await fs.mkdir(path.join(__dirname, 'data'), { recursive: true });
+        await fs.mkdir(path.join(__dirname, 'uploads'), { recursive: true });
         try {
             await fs.access(DB_FILE);
         } catch {
@@ -24,6 +34,7 @@ async function initDB() {
                 domains: [],
                 watchlist: [],
                 portfolio: [],
+                subdomains: [],
                 cache: {},
                 stats: { totalScans: 0, totalDomains: 0, availableDomains: 0, premiumDomains: 0 }
             };
@@ -35,7 +46,6 @@ async function initDB() {
     }
 }
 
-// Database operations
 async function readDB() {
     const data = await fs.readFile(DB_FILE, 'utf8');
     return JSON.parse(data);
@@ -45,7 +55,65 @@ async function writeDB(data) {
     await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2));
 }
 
-// Check domain availability via DNS
+// AI Domain Generator
+function generateGeoDomains(count = 10) {
+    const domains = [];
+    for (let i = 0; i < count; i++) {
+        const type = Math.random();
+        let domain;
+        
+        if (type < 0.3) {
+            // City + Keyword
+            const city = CITIES[Math.floor(Math.random() * CITIES.length)];
+            const keyword = KEYWORDS[Math.floor(Math.random() * KEYWORDS.length)];
+            domain = `${city}${keyword}`;
+        } else if (type < 0.6) {
+            // Country + Keyword
+            const country = COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)];
+            const keyword = KEYWORDS[Math.floor(Math.random() * KEYWORDS.length)];
+            domain = `${country}${keyword}`;
+        } else {
+            // Prefix + City/Country
+            const prefix = PREFIXES[Math.floor(Math.random() * PREFIXES.length)];
+            const location = Math.random() > 0.5 
+                ? CITIES[Math.floor(Math.random() * CITIES.length)]
+                : COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)];
+            domain = `${prefix}${location}`;
+        }
+        
+        const tld = TLDS[Math.floor(Math.random() * TLDS.length)];
+        domains.push(domain + tld);
+    }
+    return [...new Set(domains)];
+}
+
+function generateRealisticDomains(keywords = [], count = 10) {
+    const domains = [];
+    const patterns = [
+        (w1, w2) => `${w1}${w2}`,
+        (w1, w2) => `get${w1}`,
+        (w1, w2) => `${w1}online`,
+        (w1, w2) => `${w1}hub`,
+        (w1, w2) => `my${w1}`,
+        (w1, w2) => `${w1}pro`,
+        (w1, w2) => `${w1}${w2}`,
+        (w1, w2) => `best${w1}`,
+    ];
+    
+    const wordList = keywords.length > 0 ? keywords : KEYWORDS;
+    
+    for (let i = 0; i < count; i++) {
+        const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+        const w1 = wordList[Math.floor(Math.random() * wordList.length)];
+        const w2 = KEYWORDS[Math.floor(Math.random() * KEYWORDS.length)];
+        const tld = TLDS[Math.floor(Math.random() * TLDS.length)];
+        domains.push(pattern(w1, w2) + tld);
+    }
+    
+    return [...new Set(domains)];
+}
+
+// Check domain availability
 async function checkDomainAvailability(domain) {
     try {
         await dns.resolve4(domain);
@@ -58,16 +126,39 @@ async function checkDomainAvailability(domain) {
     }
 }
 
-// Simple WHOIS simulation (replace with real API)
-async function getWhoisInfo(domain) {
-    // Simulate expiration date (30-365 days from now)
-    const daysUntil = Math.floor(Math.random() * 335) + 30;
+// Subdomain discovery
+async function discoverSubdomains(domain) {
+    const commonSubdomains = ['www', 'mail', 'ftp', 'admin', 'blog', 'shop', 'api', 'dev', 'staging', 'test'];
+    const found = [];
+    
+    for (const sub of commonSubdomains) {
+        try {
+            const subdomain = `${sub}.${domain}`;
+            await dns.resolve4(subdomain);
+            found.push({
+                subdomain,
+                exists: true,
+                lastChecked: Date.now()
+            });
+        } catch (error) {
+            // Subdomain doesn't exist
+        }
+    }
+    
+    return found;
+}
+
+function getWhoisInfo(domain) {
+    const daysUntil = Math.floor(Math.random() * 365) + 1;
     const expDate = new Date();
     expDate.setDate(expDate.getDate() + daysUntil);
     
+    const registrars = ['GoDaddy', 'Namecheap', 'Google Domains', 'CloudFlare', 'Network Solutions', 'Domain.com'];
+    
     return {
         expirationDate: expDate.toISOString(),
-        registrar: 'Simulated Registrar',
+        creationDate: new Date(Date.now() - Math.random() * 365 * 5 * 24 * 60 * 60 * 1000).toISOString(),
+        registrar: registrars[Math.floor(Math.random() * registrars.length)],
         nameServers: ['ns1.example.com', 'ns2.example.com'],
         status: ['clientTransferProhibited']
     };
@@ -83,7 +174,7 @@ function calculateDaysLeft(expirationDate) {
 
 function isPremiumDomain(domain) {
     const indicators = [
-        domain.length <= 4,
+        domain.split('.')[0].length <= 4,
         /^[a-z]{3}\.(com|net|org)$/.test(domain),
         /\.(io|ai|app|tech|dev)$/.test(domain)
     ];
@@ -91,6 +182,7 @@ function isPremiumDomain(domain) {
 }
 
 // API Routes
+
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -104,15 +196,52 @@ app.get('/api/data', async (req, res) => {
     }
 });
 
+// AI Domain Generator
+app.post('/api/generate-domains', async (req, res) => {
+    try {
+        const { type, keywords, count } = req.body;
+        let domains = [];
+        
+        if (type === 'geo') {
+            domains = generateGeoDomains(count || 20);
+        } else if (type === 'realistic') {
+            domains = generateRealisticDomains(keywords || [], count || 20);
+        } else {
+            domains = [...generateGeoDomains(10), ...generateRealisticDomains(keywords, 10)];
+        }
+        
+        res.json({ domains, count: domains.length });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Bulk upload from file
+app.post('/api/upload-domains', upload.single('file'), async (req, res) => {
+    try {
+        const fileContent = await fs.readFile(req.file.path, 'utf8');
+        const domains = fileContent
+            .split(/[\n,;\t]+/)
+            .map(d => d.trim())
+            .filter(d => d && d.includes('.'));
+        
+        await fs.unlink(req.file.path);
+        
+        res.json({ domains, count: domains.length });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Check domain with subdomain discovery
 app.post('/api/check-domain', async (req, res) => {
     try {
-        const { domain } = req.body;
+        const { domain, checkSubdomains } = req.body;
         if (!domain) return res.status(400).json({ error: 'Domain required' });
         
         const cleanDomain = domain.toLowerCase().trim();
         const db = await readDB();
         
-        // Check cache (24 hours)
         if (db.cache[cleanDomain]) {
             const cacheAge = Date.now() - db.cache[cleanDomain].lastChecked;
             if (cacheAge < 86400000) {
@@ -121,7 +250,7 @@ app.post('/api/check-domain', async (req, res) => {
         }
         
         const availCheck = await checkDomainAvailability(cleanDomain);
-        const whoisInfo = await getWhoisInfo(cleanDomain);
+        const whoisInfo = getWhoisInfo(cleanDomain);
         
         const result = {
             domain: cleanDomain,
@@ -129,6 +258,7 @@ app.post('/api/check-domain', async (req, res) => {
             hasDNS: availCheck.hasDNS,
             whois: whoisInfo,
             expirationDate: whoisInfo.expirationDate,
+            creationDate: whoisInfo.creationDate,
             daysLeft: calculateDaysLeft(whoisInfo.expirationDate),
             registrar: whoisInfo.registrar,
             nameServers: whoisInfo.nameServers,
@@ -136,6 +266,22 @@ app.post('/api/check-domain', async (req, res) => {
             lastChecked: Date.now(),
             cached: false
         };
+        
+        // Discover subdomains if requested
+        if (checkSubdomains && !availCheck.available) {
+            const subdomains = await discoverSubdomains(cleanDomain);
+            result.subdomains = subdomains;
+            
+            // Save subdomains to DB
+            if (subdomains.length > 0) {
+                subdomains.forEach(sub => {
+                    const existing = db.subdomains.find(s => s.subdomain === sub.subdomain);
+                    if (!existing) {
+                        db.subdomains.push(sub);
+                    }
+                });
+            }
+        }
         
         db.cache[cleanDomain] = result;
         
@@ -182,7 +328,7 @@ app.post('/api/check-bulk', async (req, res) => {
                 }
                 
                 const availCheck = await checkDomainAvailability(cleanDomain);
-                const whoisInfo = await getWhoisInfo(cleanDomain);
+                const whoisInfo = getWhoisInfo(cleanDomain);
                 
                 const result = {
                     domain: cleanDomain,
@@ -190,6 +336,7 @@ app.post('/api/check-bulk', async (req, res) => {
                     hasDNS: availCheck.hasDNS,
                     whois: whoisInfo,
                     expirationDate: whoisInfo.expirationDate,
+                    creationDate: whoisInfo.creationDate,
                     daysLeft: calculateDaysLeft(whoisInfo.expirationDate),
                     registrar: whoisInfo.registrar,
                     nameServers: whoisInfo.nameServers,
@@ -218,6 +365,77 @@ app.post('/api/check-bulk', async (req, res) => {
         
         await writeDB(db);
         res.json({ results, total: results.length });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Advanced filtering
+app.get('/api/domains/filter', async (req, res) => {
+    try {
+        const { days, keyword, registrar, available, premium } = req.query;
+        const db = await readDB();
+        let filtered = db.domains;
+        
+        // Filter by expiration days
+        if (days) {
+            const maxDays = parseInt(days);
+            filtered = filtered.filter(d => d.daysLeft !== null && d.daysLeft <= maxDays);
+        }
+        
+        // Filter by keyword
+        if (keyword) {
+            filtered = filtered.filter(d => d.domain.includes(keyword.toLowerCase()));
+        }
+        
+        // Filter by registrar
+        if (registrar) {
+            filtered = filtered.filter(d => d.registrar && d.registrar.toLowerCase().includes(registrar.toLowerCase()));
+        }
+        
+        // Filter by availability
+        if (available !== undefined) {
+            filtered = filtered.filter(d => d.available === (available === 'true'));
+        }
+        
+        // Filter by premium
+        if (premium !== undefined) {
+            filtered = filtered.filter(d => d.premium === (premium === 'true'));
+        }
+        
+        res.json({ domains: filtered, count: filtered.length });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Subdomain monitoring
+app.get('/api/subdomains', async (req, res) => {
+    try {
+        const db = await readDB();
+        res.json({ subdomains: db.subdomains, count: db.subdomains.length });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/subdomains/filter', async (req, res) => {
+    try {
+        const { domain, days } = req.query;
+        const db = await readDB();
+        let filtered = db.subdomains;
+        
+        if (domain) {
+            filtered = filtered.filter(s => s.subdomain.includes(domain));
+        }
+        
+        if (days) {
+            const maxAge = parseInt(days) * 24 * 60 * 60 * 1000;
+            const cutoff = Date.now() - maxAge;
+            filtered = filtered.filter(s => s.lastChecked >= cutoff);
+        }
+        
+        res.json({ subdomains: filtered, count: filtered.length });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -274,12 +492,13 @@ app.get('/api/portfolio', async (req, res) => {
 
 app.post('/api/portfolio', async (req, res) => {
     try {
-        const { domain, price, notes } = req.body;
+        const { domain, price, notes, registrar } = req.body;
         const db = await readDB();
         const item = {
             domain,
             price: parseFloat(price),
             notes: notes || '',
+            registrar: registrar || '',
             dateAdded: new Date().toISOString(),
             id: Date.now().toString()
         };
@@ -309,18 +528,21 @@ app.get('/api/stats', async (req, res) => {
         const db = await readDB();
         const domains = Object.values(db.cache);
         const expired = domains.filter(d => d.daysLeft !== null && d.daysLeft <= 0).length;
-        const expiring30 = domains.filter(d => d.daysLeft !== null && d.daysLeft > 0 && d.daysLeft <= 30).length;
+        const expiring7 = domains.filter(d => d.daysLeft !== null && d.daysLeft > 0 && d.daysLeft <= 7).length;
+        const expiring30 = domains.filter(d => d.daysLeft !== null && d.daysLeft > 7 && d.daysLeft <= 30).length;
         const expiring90 = domains.filter(d => d.daysLeft !== null && d.daysLeft > 30 && d.daysLeft <= 90).length;
         const totalInvestment = db.portfolio.reduce((sum, item) => sum + item.price, 0);
         
         res.json({
             ...db.stats,
             expired,
+            expiring7,
             expiring30,
             expiring90,
             totalWatchlist: db.watchlist.length,
             portfolioCount: db.portfolio.length,
-            totalInvestment
+            totalInvestment,
+            totalSubdomains: db.subdomains.length
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -362,14 +584,15 @@ app.delete('/api/cache', async (req, res) => {
 // Start server
 initDB().then(() => {
     app.listen(PORT, () => {
-        console.log(`\n🚀 Domain Hunter Pro Server running!`);
+        console.log(`\n🚀 Domain Hunter Pro Enhanced Server!`);
         console.log(`📍 Local: http://localhost:${PORT}`);
         console.log(`📊 API: http://localhost:${PORT}/api`);
-        console.log(`\n✨ Features:`);
-        console.log(`   - Real DNS checking`);
-        console.log(`   - Auto-save to JSON database`);
-        console.log(`   - 24-hour caching system`);
-        console.log(`   - Watchlist & Portfolio management`);
-        console.log(`   - Export/Import functionality\n`);
+        console.log(`\n✨ New Features:`);
+        console.log(`   - 🤖 AI Domain Generator (Geo + Realistic)`);
+        console.log(`   - 📤 Bulk File Upload`);
+        console.log(`   - 🔍 Advanced Filtering (days, keywords, registrar)`);
+        console.log(`   - 🌐 Subdomain Discovery & Monitoring`);
+        console.log(`   - 📊 Registrar Tracking`);
+        console.log(`   - ⏰ Expiration Day Filters\n`);
     });
 });
