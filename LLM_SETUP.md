@@ -1,677 +1,523 @@
-# 🤖 LLM Setup Guide for Domain Hunter Pro
+# 🤖 LLM Setup Guide - Domain Hunter Pro
 
-## Overview
+## Complete AI Integration Guide
 
-Domain Hunter Pro supports multiple LLM providers for AI-powered domain generation:
-
-- **Local LLMs** (Ollama: LLaMA, Mistral, Qwen, Gemma, etc.)
-- **OpenAI** (GPT-3.5, GPT-4)
-- **Claude** (Claude 3 Sonnet/Opus)
-- **Grok** (xAI)
-- **Custom APIs**
+This guide covers setting up local LLMs (Qwen2.5:3b, LLaMA, Mistral, Gemma) and cloud APIs (OpenAI, Claude, Grok) for AI-powered domain generation.
 
 ---
 
-## 🏠 Local LLM Setup (Ollama)
+## 💻 Local LLM Setup (Recommended)
 
-### Prerequisites
-- 8GB+ RAM (16GB+ recommended)
-- GPU (optional, but recommended)
-- 10GB+ free disk space
+### Why Local LLM?
 
-### 1. Install Ollama
+✅ **Free forever** - No API costs
+✅ **Privacy** - Your data stays local
+✅ **Fast** - No network latency
+✅ **Offline** - Works without internet
+✅ **Unlimited** - No rate limits
 
-**Linux & macOS:**
+### Option 1: Ollama (Easiest - Recommended)
+
+#### Step 1: Install Ollama
+
+**Linux / macOS:**
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
 ```
 
 **Windows:**
-Download from [ollama.com/download](https://ollama.com/download)
+Download from: https://ollama.com/download/windows
 
-**Verify Installation:**
+**Docker:**
 ```bash
-ollama --version
+docker run -d -p 11434:11434 --name ollama ollama/ollama
 ```
 
-### 2. Download Models
+#### Step 2: Pull a Model
 
-#### Recommended Models:
-
-**Small & Fast (4GB RAM):**
+**Qwen2.5:3b (Recommended - Best for domain generation)**
 ```bash
-# Gemma 2B - Google's tiny model
-ollama pull gemma:2b
-
-# TinyLlama 1.1B - Ultra-fast
-ollama pull tinyllama
-
-# Phi-2 2.7B - Microsoft's efficient model
-ollama pull phi
+ollama pull qwen2.5:3b
 ```
 
-**Medium (8GB RAM):**
+**Other Options:**
 ```bash
-# Mistral 7B - Excellent balance
-ollama pull mistral:7b
-
-# LLaMA 2 7B - Meta's model
+# LLaMA 2 7B (Meta)
 ollama pull llama2:7b
 
-# Qwen 7B - Alibaba's multilingual model
-ollama pull qwen:7b
+# Mistral 7B (Mistral AI)
+ollama pull mistral:7b
 
-# Gemma 7B - Google's optimized model
+# Gemma 7B (Google)
 ollama pull gemma:7b
+
+# Phi-2 (Microsoft - Smaller, faster)
+ollama pull phi
+
+# TinyLlama (Ultra lightweight)
+ollama pull tinyllama
 ```
 
-**Large (16GB+ RAM):**
-```bash
-# Mixtral 8x7B - Mixture of experts
-ollama pull mixtral:8x7b
-
-# LLaMA 2 13B
-ollama pull llama2:13b
-
-# CodeLlama 13B - For tech domains
-ollama pull codellama:13b
-```
-
-### 3. Test Your Model
+#### Step 3: Start Ollama Server
 
 ```bash
-# Interactive chat
-ollama run qwen:7b
-
-# Single prompt
-ollama run qwen:7b "Generate 5 creative domain names for a tech startup"
-```
-
-### 4. Start Ollama Server
-
-```bash
-# Runs on http://localhost:11434
+# Start Ollama service
 ollama serve
 ```
 
-### 5. Configure in Domain Hunter Pro
-
-**Method 1: Via Web Interface**
-1. Open Domain Hunter Pro
-2. Go to **Settings** tab
-3. Select **LLM Configuration**
-4. Choose **Local (Ollama)**
-5. Set endpoint: `http://localhost:11434/api/generate`
-6. Select your model (e.g., `qwen:7b`)
-7. Click **Save**
-
-**Method 2: Edit Config File**
+**Or run as systemd service (Linux):**
 ```bash
-nano data/config.json
+sudo systemctl enable ollama
+sudo systemctl start ollama
 ```
 
-```json
-{
-  "llm": {
-    "provider": "local",
-    "local": {
-      "enabled": true,
-      "model": "qwen:7b",
-      "endpoint": "http://localhost:11434/api/generate"
-    }
-  }
-}
-```
-
-### 6. Test AI Generation
+#### Step 4: Test the Model
 
 ```bash
-curl -X POST http://localhost:3000/api/generate-domains \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "realistic",
-    "keywords": ["tech", "ai"],
-    "count": 10,
-    "useLLM": true
-  }'
+curl http://localhost:11434/api/generate -d '{
+  "model": "qwen2.5:3b",
+  "prompt": "Generate 5 creative domain names for a tech startup",
+  "stream": false
+}'
 ```
+
+#### Step 5: Configure in Domain Hunter Pro
+
+1. Open **Settings** page
+2. Select **Local (Ollama)** provider
+3. Enable Local LLM
+4. Select model: `qwen2.5:3b`
+5. Endpoint: `http://localhost:11434/api/generate`
+6. Click **Save Configuration**
 
 ---
 
-## 🌐 OpenAI Setup (GPT)
+### Option 2: LM Studio (GUI Alternative)
 
-### 1. Get API Key
+#### Step 1: Install LM Studio
 
-1. Go to [platform.openai.com](https://platform.openai.com)
-2. Sign up or log in
-3. Navigate to **API Keys**
-4. Create new secret key
-5. Copy the key (starts with `sk-`)
+Download from: https://lmstudio.ai/
 
-### 2. Configure Domain Hunter Pro
+#### Step 2: Download Model
 
-**Via Web Interface:**
-1. Go to **Settings** → **LLM Configuration**
-2. Select **OpenAI**
-3. Enter API Key
-4. Choose model:
-   - `gpt-3.5-turbo` (Fast & Cheap)
-   - `gpt-4` (Most capable)
-   - `gpt-4-turbo` (Balanced)
+1. Open LM Studio
+2. Go to **Search** tab
+3. Search for "Qwen2.5 3B"
+4. Click **Download**
+
+#### Step 3: Start Local Server
+
+1. Go to **Local Server** tab
+2. Select downloaded model
+3. Click **Start Server**
+4. Note the endpoint (usually `http://localhost:1234/v1`)
+
+#### Step 4: Configure
+
+- Provider: Local
+- Endpoint: `http://localhost:1234/v1/chat/completions`
+
+---
+
+### Option 3: Text Generation WebUI
+
+#### Step 1: Install
+
+```bash
+git clone https://github.com/oobabooga/text-generation-webui
+cd text-generation-webui
+./start_linux.sh  # or start_windows.bat, start_macos.sh
+```
+
+#### Step 2: Download Model
+
+1. Open http://localhost:7860
+2. Go to **Model** tab
+3. Download "Qwen/Qwen2.5-3B-Instruct-GGUF"
+
+#### Step 3: Enable API
+
+1. Go to **Session** tab
+2. Enable **API** extension
+3. Restart server
+
+#### Step 4: Configure
+
+- Endpoint: `http://localhost:7860/v1/chat/completions`
+
+---
+
+## ☁️ Cloud API Setup
+
+### Option 4: OpenAI (GPT)
+
+#### Features
+- Most powerful
+- Excellent creativity
+- Fast responses
+- Pay per use
+
+#### Setup
+
+1. Sign up at: https://platform.openai.com/
+2. Go to **API Keys**: https://platform.openai.com/api-keys
+3. Click **Create new secret key**
+4. Copy key (starts with `sk-`)
+
+#### Configure in App
+
+1. Settings → Provider: **OpenAI**
+2. Enable OpenAI
+3. API Key: `sk-...`
+4. Model: `gpt-3.5-turbo` (cheap) or `gpt-4` (better)
 5. Save
 
-**Via Config File:**
-```json
-{
-  "llm": {
-    "provider": "openai",
-    "openai": {
-      "enabled": true,
-      "apiKey": "sk-your-key-here",
-      "model": "gpt-3.5-turbo"
-    }
-  }
-}
-```
+#### Pricing
 
-### 3. Pricing (as of 2024)
-
-| Model | Input | Output | Best For |
-|-------|--------|---------|----------|
-| GPT-3.5 Turbo | $0.50/1M | $1.50/1M | High volume |
-| GPT-4 Turbo | $10/1M | $30/1M | Quality |
-| GPT-4 | $30/1M | $60/1M | Complex tasks |
+- GPT-3.5-Turbo: $0.0010 / 1K tokens
+- GPT-4: $0.03 / 1K tokens
 
 ---
 
-## 🎭 Claude Setup (Anthropic)
+### Option 5: Claude (Anthropic)
 
-### 1. Get API Key
+#### Features
+- Very creative
+- Long context
+- Safe outputs
 
-1. Go to [console.anthropic.com](https://console.anthropic.com)
-2. Create account
-3. Go to **API Keys**
-4. Generate new key
-5. Copy key
+#### Setup
 
-### 2. Configure
+1. Sign up at: https://console.anthropic.com/
+2. Go to **API Keys**
+3. Create new key
+4. Copy key (starts with `sk-ant-`)
 
-```json
-{
-  "llm": {
-    "provider": "claude",
-    "claude": {
-      "enabled": true,
-      "apiKey": "sk-ant-your-key-here",
-      "model": "claude-3-sonnet-20240229"
-    }
-  }
-}
-```
+#### Configure
 
-### 3. Models
+1. Provider: **Claude**
+2. Enable Claude
+3. API Key: `sk-ant-...`
+4. Model: `claude-3-haiku` (fast) or `claude-3-sonnet` (better)
+5. Save
 
-- `claude-3-opus` - Most capable
-- `claude-3-sonnet` - Balanced (recommended)
-- `claude-3-haiku` - Fast & affordable
+#### Pricing
+
+- Haiku: $0.25 / 1M tokens
+- Sonnet: $3 / 1M tokens
 
 ---
 
-## 🚀 Grok Setup (xAI)
+### Option 6: Grok (xAI)
 
-### 1. Get API Key
+#### Features
+- Latest from Elon Musk's xAI
+- Real-time data access
+- Humorous responses
 
-1. Go to [x.ai/api](https://x.ai/api)
-2. Sign up for API access
-3. Generate API key
+#### Setup
 
-### 2. Configure
+1. Sign up at: https://x.ai/
+2. Get API access
+3. Copy API key
 
-```json
-{
-  "llm": {
-    "provider": "grok",
-    "grok": {
-      "enabled": true,
-      "apiKey": "your-grok-key",
-      "model": "grok-1"
-    }
-  }
-}
-```
+#### Configure
 
----
-
-## 🐍 Python Integration Examples
-
-### Ollama (Local)
-
-```python
-import requests
-
-def ask_ollama(prompt, model="qwen:7b"):
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
-            "model": model,
-            "prompt": prompt,
-            "stream": False
-        }
-    )
-    return response.json()["response"]
-
-# Generate domain names
-prompt = "Generate 10 creative domain names for a tech startup focused on AI"
-result = ask_ollama(prompt)
-print(result)
-```
-
-### OpenAI
-
-```python
-import openai
-
-openai.api_key = "sk-your-key"
-
-def generate_domains_openai(keywords):
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "user", 
-             "content": f"Generate 10 domain names for: {', '.join(keywords)}"}
-        ]
-    )
-    return response.choices[0].message.content
-
-domains = generate_domains_openai(["tech", "ai", "startup"])
-print(domains)
-```
-
-### Claude
-
-```python
-import anthropic
-
-client = anthropic.Anthropic(api_key="sk-ant-your-key")
-
-def generate_domains_claude(keywords):
-    message = client.messages.create(
-        model="claude-3-sonnet-20240229",
-        max_tokens=1024,
-        messages=[
-            {"role": "user", 
-             "content": f"Generate 10 domain names for: {', '.join(keywords)}"}
-        ]
-    )
-    return message.content[0].text
-
-domains = generate_domains_claude(["health", "fitness"])
-print(domains)
-```
-
----
-
-## 🔧 Advanced Ollama Configuration
-
-### Custom Model Parameters
-
-```bash
-# Create custom model with specific parameters
-ollama create mydomain-generator -f Modelfile
-```
-
-**Modelfile:**
-```
-FROM qwen:7b
-
-PARAMETER temperature 0.9
-PARAMETER top_p 0.9
-PARAMETER top_k 50
-
-SYSTEM """
-You are a creative domain name generator. Generate only domain names,
-one per line, without explanations. Focus on:
-- Short, memorable names
-- Easy to spell
-- Brandable
-- Available TLDs (.com, .io, .ai, .app)
-"""
-```
-
-### GPU Acceleration
-
-**NVIDIA GPU (CUDA):**
-```bash
-# Install CUDA toolkit
-sudo apt install nvidia-cuda-toolkit
-
-# Ollama automatically uses GPU if available
-ollama run qwen:7b
-```
-
-**AMD GPU (ROCm):**
-```bash
-export HSA_OVERRIDE_GFX_VERSION=10.3.0
-ollama serve
-```
-
-**Apple Silicon (Metal):**
-```bash
-# Automatically enabled on M1/M2/M3 Macs
-ollama run qwen:7b
-```
-
-### Performance Tuning
-
-```bash
-# Increase context window
-ollama run qwen:7b --ctx-size 4096
-
-# Adjust threads
-ollama run qwen:7b --threads 8
-
-# Enable GPU layers
-ollama run qwen:7b --gpu-layers 35
-```
+1. Provider: **Grok**
+2. Enable Grok
+3. API Key: `xai-...`
+4. Save
 
 ---
 
 ## 📊 Model Comparison
 
-### Local Models (Ollama)
-
-| Model | Size | Speed | Quality | RAM | Best For |
-|-------|------|-------|---------|-----|----------|
-| TinyLlama | 1.1B | ⚡⚡⚡⚡⚡ | ⭐⭐ | 4GB | Quick tests |
-| Gemma 2B | 2B | ⚡⚡⚡⚡ | ⭐⭐⭐ | 4GB | Budget |
-| Phi-2 | 2.7B | ⚡⚡⚡⚡ | ⭐⭐⭐⭐ | 4GB | Efficient |
-| Mistral 7B | 7B | ⚡⚡⚡ | ⭐⭐⭐⭐ | 8GB | **Recommended** |
-| Qwen 7B | 7B | ⚡⚡⚡ | ⭐⭐⭐⭐⭐ | 8GB | Multilingual |
-| LLaMA 2 7B | 7B | ⚡⚡⚡ | ⭐⭐⭐⭐ | 8GB | General |
-| Mixtral 8x7B | 47B | ⚡⚡ | ⭐⭐⭐⭐⭐ | 16GB | High quality |
-
-### Cloud Models
-
-| Provider | Model | Speed | Quality | Cost | Best For |
-|----------|-------|-------|---------|------|----------|
-| OpenAI | GPT-3.5 | ⚡⚡⚡⚡ | ⭐⭐⭐⭐ | $ | High volume |
-| OpenAI | GPT-4 | ⚡⚡ | ⭐⭐⭐⭐⭐ | $$$ | Quality |
-| Claude | Haiku | ⚡⚡⚡⚡ | ⭐⭐⭐ | $ | Fast |
-| Claude | Sonnet | ⚡⚡⚡ | ⭐⭐⭐⭐ | $$ | **Recommended** |
-| Claude | Opus | ⚡⚡ | ⭐⭐⭐⭐⭐ | $$$ | Complex |
+| Model | Size | Speed | Quality | Cost | Privacy |
+|-------|------|-------|---------|------|----------|
+| **Qwen2.5:3b** | 3B | ⚡⚡⚡ Fast | ⭐⭐⭐⭐ Good | 🆓 Free | 🔒 Local |
+| **LLaMA 2 7B** | 7B | ⚡⚡ Medium | ⭐⭐⭐⭐⭐ Great | 🆓 Free | 🔒 Local |
+| **Mistral 7B** | 7B | ⚡⚡ Medium | ⭐⭐⭐⭐⭐ Great | 🆓 Free | 🔒 Local |
+| **Phi-2** | 2.7B | ⚡⚡⚡ Fast | ⭐⭐⭐ Good | 🆓 Free | 🔒 Local |
+| **TinyLlama** | 1.1B | ⚡⚡⚡ Fast | ⭐⭐ OK | 🆓 Free | 🔒 Local |
+| **GPT-3.5** | ? | ⚡⚡⚡ Fast | ⭐⭐⭐⭐ Good | 💰 Paid | ☁️ Cloud |
+| **GPT-4** | ? | ⚡⚡ Medium | ⭐⭐⭐⭐⭐ Excellent | 💰💰 Expensive | ☁️ Cloud |
+| **Claude 3** | ? | ⚡⚡ Medium | ⭐⭐⭐⭐⭐ Excellent | 💰 Paid | ☁️ Cloud |
 
 ---
 
-## 🎯 Prompt Engineering for Domains
+## 🔧 Advanced Configuration
 
-### Basic Prompt
-```
-Generate 10 creative domain names for a tech startup
-```
+### Custom Ollama Endpoint
 
-### Advanced Prompt
-```
-You are a domain name expert. Generate 10 highly brandable domain names for:
+If running Ollama on different port/host:
 
-Industry: Technology / AI
-Keywords: smart, tech, ai, cloud
-Requirements:
-- 5-10 characters
-- Easy to spell
-- Memorable
-- Available .com or .io
-- No hyphens or numbers
-
-Return only domain names, one per line.
-```
-
-### Geo-Domain Prompt
-```
-Generate 10 geo-location based domain names combining:
-- Major cities (New York, Tokyo, Paris, Dubai)
-- Business keywords (tech, market, shop, hub)
-- Premium TLDs (.com, .io, .app)
-
-Format: cityname + keyword + tld
-Example: newyorktech.com
-```
-
-### Premium Domain Prompt
-```
-Generate 10 premium, short domain names:
-- 3-5 characters only
-- Real words or brandable combinations
-- Focus on .com, .ai, .io
-- Must sound professional
-```
-
----
-
-## 🚨 Troubleshooting
-
-### Ollama Issues
-
-**Problem: "Connection refused"**
 ```bash
-# Start Ollama server
-ollama serve
-
-# Check if running
-curl http://localhost:11434/api/tags
+# Start on custom port
+OLLAMA_HOST=0.0.0.0:8080 ollama serve
 ```
 
-**Problem: "Model not found"**
+Configure endpoint:
+```
+http://localhost:8080/api/generate
+```
+
+### Multiple Models
+
+Run multiple models simultaneously:
+
+```bash
+# Terminal 1
+OLLAMA_HOST=0.0.0.0:11434 ollama serve
+
+# Terminal 2
+OLLAMA_HOST=0.0.0.0:11435 ollama serve
+```
+
+### GPU Acceleration
+
+Ollama automatically uses GPU if available:
+
+**Check GPU usage:**
+```bash
+# NVIDIA
+nvidia-smi
+
+# AMD
+radeontop
+
+# Intel
+intel_gpu_top
+```
+
+### Performance Tuning
+
+**Increase context length:**
+```bash
+ollama run qwen2.5:3b --ctx-size 4096
+```
+
+**Set number of threads:**
+```bash
+ollama run qwen2.5:3b --threads 8
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### Issue: "Connection refused"
+
+**Solution:**
+```bash
+# Check if Ollama is running
+ps aux | grep ollama
+
+# Check port
+netstat -tulpn | grep 11434
+
+# Restart Ollama
+killall ollama
+ollama serve
+```
+
+### Issue: "Model not found"
+
+**Solution:**
 ```bash
 # List installed models
 ollama list
 
-# Pull missing model
-ollama pull qwen:7b
+# Pull model again
+ollama pull qwen2.5:3b
 ```
 
-**Problem: "Out of memory"**
-```bash
-# Use smaller model
-ollama pull gemma:2b
+### Issue: "Out of memory"
 
-# Or reduce context
-ollama run qwen:7b --ctx-size 2048
+**Solution:**
+- Use smaller model (phi, tinyllama)
+- Close other applications
+- Reduce context size
+- Add more RAM/swap
+
+### Issue: "Slow responses"
+
+**Solution:**
+- Use smaller model
+- Enable GPU acceleration
+- Increase thread count
+- Use SSD storage
+
+---
+
+## 💻 Python Integration Example
+
+For developers wanting to integrate directly:
+
+```python
+import requests
+import json
+
+def generate_domains(prompt, count=10):
+    """
+    Generate domains using Qwen2.5:3b
+    """
+    response = requests.post(
+        "http://localhost:11434/api/generate",
+        json={
+            "model": "qwen2.5:3b",
+            "prompt": f"Generate {count} creative domain names for: {prompt}. List only domain names.",
+            "stream": False,
+            "temperature": 0.8,
+            "top_p": 0.9
+        }
+    )
+    
+    result = response.json()
+    domains = result["response"].strip().split("\n")
+    return [d.strip() for d in domains if "." in d]
+
+# Example usage
+domains = generate_domains("tech startup AI", count=10)
+for domain in domains:
+    print(domain)
 ```
 
-### OpenAI Issues
+### FastAPI Integration
 
-**Problem: "Invalid API key"**
-- Verify key starts with `sk-`
-- Check key hasn't expired
-- Ensure billing is set up
+```python
+from fastapi import FastAPI
+from pydantic import BaseModel
+import requests
 
-**Problem: "Rate limit exceeded"**
-- Reduce frequency of requests
-- Upgrade plan
-- Use caching
+app = FastAPI()
 
-### Claude Issues
+class DomainRequest(BaseModel):
+    keywords: list[str]
+    count: int = 10
 
-**Problem: "Authentication failed"**
-- Verify API key format
-- Check account status
-- Ensure API access is enabled
+@app.post("/generate")
+def generate(req: DomainRequest):
+    prompt = f"Generate {req.count} domain names for: {', '.join(req.keywords)}"
+    
+    response = requests.post(
+        "http://localhost:11434/api/generate",
+        json={
+            "model": "qwen2.5:3b",
+            "prompt": prompt,
+            "stream": False
+        }
+    )
+    
+    return response.json()
+
+# Run with: uvicorn main:app --reload
+```
 
 ---
 
 ## 💡 Best Practices
 
-### 1. Choose Right Model
+### For Domain Generation
 
-**High Volume (1000+ requests/day):**
-- Use local Ollama models
-- Save costs
-- Fast response
+1. **Use specific prompts:**
+   ```
+   ❌ Bad: "Generate domains"
+   ✅ Good: "Generate 10 short .com domains for tech startups focused on AI"
+   ```
 
-**Quality First:**
-- GPT-4 or Claude Opus
-- Better creativity
-- More accurate
+2. **Set temperature:**
+   - Low (0.3-0.5): More focused, predictable
+   - High (0.8-1.0): More creative, diverse
 
-**Balanced:**
-- Mistral 7B (local)
-- GPT-3.5 Turbo (cloud)
-- Claude Sonnet (cloud)
+3. **Batch requests:**
+   - Generate 20-50 domains at once
+   - Filter duplicates
+   - Check availability
 
-### 2. Optimize Prompts
+### For Cost Optimization
 
-```javascript
-// Bad
-"generate domains"
+1. **Use local LLM** for bulk generation
+2. **Use cloud APIs** for high-quality, specific requests
+3. **Cache results** to avoid repeated API calls
+4. **Set rate limits** on cloud APIs
 
-// Good
-"Generate 10 short, brandable .com domain names for a fintech startup"
+### For Quality Results
 
-// Best
-"You are a domain expert. Generate 10 domain names for:
-Industry: Fintech
-Target: Small businesses
-Style: Professional, trustworthy
-Length: 6-10 characters
-TLD: .com only
-Return format: domain.com (one per line)"
-```
+1. **Provide context:**
+   - Industry/niche
+   - Target audience
+   - Desired keywords
+   
+2. **Test multiple models:**
+   - Try different models
+   - Compare results
+   - Pick best performer
 
-### 3. Cache Results
-
-- Domain Hunter Pro automatically caches LLM responses
-- Reduces API costs
-- Faster repeated requests
-
-### 4. Monitor Usage
-
-**OpenAI:**
-```bash
-curl https://api.openai.com/v1/usage \
-  -H "Authorization: Bearer $OPENAI_API_KEY"
-```
-
-**Local:**
-```bash
-# Monitor GPU usage
-nvidia-smi
-
-# Monitor RAM
-htop
-```
+3. **Iterate prompts:**
+   - Refine based on output
+   - Add constraints
+   - Use examples
 
 ---
 
-## 🔄 Switching Between Providers
+## 📖 Resources
 
-### Quick Switch via API
-
-```bash
-# Switch to local
-curl -X POST http://localhost:3000/api/config \
-  -H "Content-Type: application/json" \
-  -d '{"llm": {"provider": "local"}}'
-
-# Switch to OpenAI
-curl -X POST http://localhost:3000/api/config \
-  -H "Content-Type: application/json" \
-  -d '{"llm": {"provider": "openai"}}'
-```
-
-### Fallback Configuration
-
-```json
-{
-  "llm": {
-    "provider": "local",
-    "fallback": "openai",
-    "local": {
-      "enabled": true,
-      "model": "qwen:7b",
-      "timeout": 30000
-    },
-    "openai": {
-      "enabled": true,
-      "apiKey": "sk-...",
-      "model": "gpt-3.5-turbo"
-    }
-  }
-}
-```
-
----
-
-## 📚 Additional Resources
-
-### Documentation
-- [Ollama Docs](https://github.com/ollama/ollama)
-- [OpenAI API Reference](https://platform.openai.com/docs)
-- [Claude API Docs](https://docs.anthropic.com)
+### Official Documentation
+- Ollama: https://ollama.com/docs
+- LM Studio: https://lmstudio.ai/docs
+- OpenAI: https://platform.openai.com/docs
+- Anthropic: https://docs.anthropic.com
 
 ### Model Cards
-- [Mistral AI](https://mistral.ai/technology/)
-- [LLaMA 2](https://ai.meta.com/llama/)
-- [Qwen](https://github.com/QwenLM/Qwen)
-- [Gemma](https://ai.google.dev/gemma)
+- Qwen2.5: https://huggingface.co/Qwen/Qwen2.5-3B-Instruct
+- LLaMA 2: https://huggingface.co/meta-llama/Llama-2-7b
+- Mistral: https://huggingface.co/mistralai/Mistral-7B-v0.1
+- Gemma: https://huggingface.co/google/gemma-7b
 
-### Communities
-- [Ollama Discord](https://discord.gg/ollama)
-- [r/LocalLLaMA](https://reddit.com/r/LocalLLaMA)
-- [OpenAI Community](https://community.openai.com)
-
----
-
-## 🎓 Quick Start Examples
-
-### Example 1: Local Setup (5 minutes)
-
-```bash
-# Install Ollama
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Download fast model
-ollama pull mistral:7b
-
-# Start server
-ollama serve &
-
-# Configure Domain Hunter Pro
-echo '{
-  "llm": {
-    "provider": "local",
-    "local": {
-      "enabled": true,
-      "model": "mistral:7b",
-      "endpoint": "http://localhost:11434/api/generate"
-    }
-  }
-}' > data/config.json
-
-# Start app
-npm start
-```
-
-### Example 2: OpenAI Setup (2 minutes)
-
-```bash
-# Get API key from platform.openai.com
-
-# Configure
-echo '{
-  "llm": {
-    "provider": "openai",
-    "openai": {
-      "enabled": true,
-      "apiKey": "sk-your-key-here",
-      "model": "gpt-3.5-turbo"
-    }
-  }
-}' > data/config.json
-
-# Start app
-npm start
-```
+### Community
+- Ollama Discord: https://discord.gg/ollama
+- r/LocalLLaMA: https://reddit.com/r/LocalLLaMA
+- Hugging Face: https://huggingface.co/spaces
 
 ---
 
-**Ready to generate AI-powered domain names! 🚀**
+## ❓ FAQ
+
+### Q: Which model should I use?
+**A:** Start with **Qwen2.5:3b** - best balance of speed, quality, and size.
+
+### Q: Do I need a GPU?
+**A:** No, but it helps. CPU works fine for 3B-7B models.
+
+### Q: How much RAM do I need?
+**A:** 
+- 3B models: 4-8 GB RAM
+- 7B models: 8-16 GB RAM
+- 13B+ models: 16+ GB RAM
+
+### Q: Can I use multiple providers?
+**A:** Yes! Switch between local and cloud as needed.
+
+### Q: Is my data private with local LLM?
+**A:** Yes! Everything stays on your computer.
+
+### Q: Which is faster, local or cloud?
+**A:** Local LLM is faster (no network latency), but cloud APIs have more powerful hardware.
+
+---
+
+## 🚀 Next Steps
+
+1. ✅ Install Ollama
+2. ✅ Pull Qwen2.5:3b model
+3. ✅ Configure in Domain Hunter Pro
+4. ✅ Generate your first domains!
+5. ✅ Experiment with different prompts
+6. ✅ Compare with cloud APIs
+7. ✅ Find your perfect setup
+
+---
+
+**Need help?** Open an issue on GitHub: https://github.com/xcybermanx/domain-hunter-pro-enhanced/issues
+
+**Happy domain hunting with AI! 🎯🤖**
