@@ -45,9 +45,9 @@ const DEFAULT_CONFIG = {
         provider: 'local',
         local:       { enabled: false, model: 'qwen2.5:3b', endpoint: 'http://localhost:11434/api/generate' },
         openai:      { enabled: false, apiKey: '', model: 'gpt-3.5-turbo' },
-        claude:      { enabled: false, apiKey: '', model: 'claude-3-haiku' },
+        claude:      { enabled: false, apiKey: '', model: 'claude-3-haiku-20240307' },
         perplexity:  { enabled: false, apiKey: '', model: 'llama-3.1-sonar-small-128k-online' },
-        grok:        { enabled: false, apiKey: '', model: 'grok-1' }
+        grok:        { enabled: false, apiKey: '', model: 'grok-beta' }
     }
 };
 function readConfig() {
@@ -105,7 +105,7 @@ async function generateWithLLM(keywords, type, count, tlds) {
 Requirements:
 - Keywords to focus on: ${kwStr}
 - Style: ${style}
-- Use these TLD extensions: ${tldList}
+- Use ONLY these TLD extensions: ${tldList}
 - Each domain must be unique, memorable, and professional
 - Incorporate the keywords naturally into the domain names
 - Mix different patterns: keyword+word, word+keyword, abbreviations, creative combinations
@@ -125,13 +125,13 @@ madridpro.io`;
             const r = await axios.post('https://api.openai.com/v1/chat/completions', { model: providerCfg.model || 'gpt-3.5-turbo', messages: [{ role: 'user', content: prompt }], max_tokens: 800, temperature: 0.8 }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
             responseText = r.data?.choices?.[0]?.message?.content || '';
         } else if (provider === 'claude') {
-            const r = await axios.post('https://api.anthropic.com/v1/messages', { model: providerCfg.model || 'claude-3-haiku', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }, { headers: { 'x-api-key': providerCfg.apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, timeout: 60000 });
+            const r = await axios.post('https://api.anthropic.com/v1/messages', { model: providerCfg.model || 'claude-3-haiku-20240307', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }, { headers: { 'x-api-key': providerCfg.apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, timeout: 60000 });
             responseText = r.data?.content?.[0]?.text || '';
         } else if (provider === 'perplexity') {
-            const r = await axios.post('https://api.perplexity.ai/chat/completions', { model: providerCfg.model || 'llama-3.1-sonar-small-128k-online', messages: [{ role: 'user', content: prompt }], max_tokens: 800 }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
+            const r = await axios.post('https://api.perplexity.ai/chat/completions', { model: providerCfg.model || 'llama-3.1-sonar-small-128k-online', messages: [{ role: 'user', content: prompt }] }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
             responseText = r.data?.choices?.[0]?.message?.content || '';
         } else if (provider === 'grok') {
-            const r = await axios.post('https://api.x.ai/v1/chat/completions', { model: providerCfg.model || 'grok-1', messages: [{ role: 'user', content: prompt }], max_tokens: 800 }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
+            const r = await axios.post('https://api.x.ai/v1/chat/completions', { model: providerCfg.model || 'grok-beta', messages: [{ role: 'user', content: prompt }], max_tokens: 800 }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
             responseText = r.data?.choices?.[0]?.message?.content || '';
         }
         const lines = responseText.split(/\n/)
@@ -308,7 +308,7 @@ app.post('/api/check-domains', async (req, res) => {
     res.json({ results, count: results.length });
 });
 
-// GeoNames API search endpoint
+// GeoNames API endpoints
 app.get('/api/geonames/search', async (req, res) => {
     const { q, type } = req.query;
     if (!q) return res.status(400).json({ error: 'Query parameter required' });
@@ -332,6 +332,45 @@ app.get('/api/geonames/search', async (req, res) => {
     } catch (err) {
         console.error('GeoNames API error:', err.message);
         res.status(500).json({ error: 'Failed to fetch from GeoNames', details: err.message });
+    }
+});
+
+// Get all countries
+app.get('/api/geonames/countries', async (req, res) => {
+    try {
+        const response = await axios.get(`http://api.geonames.org/countryInfoJSON?username=${GEONAMES_USERNAME}`, { timeout: 5000 });
+        const countries = (response.data?.geonames || []).map(c => ({
+            name: c.countryName,
+            countryCode: c.countryCode,
+            population: c.population || 0,
+            capital: c.capital || '',
+            continent: c.continentName || ''
+        })).sort((a, b) => b.population - a.population);
+        res.json({ countries });
+    } catch (err) {
+        console.error('GeoNames countries error:', err.message);
+        res.status(500).json({ error: 'Failed to fetch countries', details: err.message });
+    }
+});
+
+// Get cities by country
+app.get('/api/geonames/cities/:countryCode', async (req, res) => {
+    const { countryCode } = req.params;
+    const limit = parseInt(req.query.limit) || 50;
+    try {
+        const url = `http://api.geonames.org/searchJSON?country=${countryCode}&featureClass=P&maxRows=${limit}&username=${GEONAMES_USERNAME}&orderby=population&style=FULL`;
+        const response = await axios.get(url, { timeout: 5000 });
+        const cities = (response.data?.geonames || []).map(c => ({
+            name: c.name,
+            population: c.population || 0,
+            countryCode: c.countryCode,
+            geonameId: c.geonameId,
+            adminName: c.adminName1 || ''
+        }));
+        res.json({ cities, count: cities.length });
+    } catch (err) {
+        console.error('GeoNames cities error:', err.message);
+        res.status(500).json({ error: 'Failed to fetch cities', details: err.message });
     }
 });
 
@@ -443,6 +482,15 @@ app.delete('/api/monitoring/:domain', (req, res) => {
     res.json({ success: true, removed: key });
 });
 
+// Remove all monitored domains
+app.delete('/api/monitoring', (req, res) => {
+    const db = readDB();
+    const count = Object.keys(db.cache || {}).length;
+    db.cache = {};
+    writeDB(db);
+    res.json({ success: true, removed: count });
+});
+
 app.get('/api/expiring', (req, res) => {
     const maxDays = parseInt(req.query.maxDays) || 30;
     const db = readDB();
@@ -527,7 +575,7 @@ app.post('/api/test-llm-connection', async (req, res) => {
             await axios.post('https://api.anthropic.com/v1/messages', { model, max_tokens: 5, messages: [{ role: 'user', content: 'Say OK' }] }, { headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, timeout: 15000 });
             return res.json({ success: true, message: 'Claude connected', model, latency: Date.now() - start });
         } else if (provider === 'perplexity') {
-            await axios.post('https://api.perplexity.ai/chat/completions', { model, messages: [{ role: 'user', content: 'Say OK' }], max_tokens: 5 }, { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 15000 });
+            await axios.post('https://api.perplexity.ai/chat/completions', { model, messages: [{ role: 'user', content: 'Say OK' }] }, { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 15000 });
             return res.json({ success: true, message: 'Perplexity connected', model, latency: Date.now() - start });
         } else if (provider === 'grok') {
             await axios.post('https://api.x.ai/v1/chat/completions', { model, messages: [{ role: 'user', content: 'Say OK' }], max_tokens: 5 }, { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 15000 });
@@ -535,7 +583,7 @@ app.post('/api/test-llm-connection', async (req, res) => {
         }
         res.status(400).json({ success: false, error: 'Unknown provider' });
     } catch (err) {
-        res.json({ success: false, error: err.message, details: err.response?.data?.error?.message || '' });
+        res.json({ success: false, error: err.message, details: err.response?.data?.error?.message || err.response?.data?.detail || '' });
     }
 });
 
