@@ -30,8 +30,6 @@ function selectGenType(type) {
 }
 
 // ── GeoNames Location Search ────────────────────────────────────
-let currentPopFilter = 0;
-
 function setPopulationFilter(minPop) {
     currentPopFilter = minPop;
     document.querySelectorAll('#populationFilter button').forEach(btn => {
@@ -64,13 +62,20 @@ function handleGeoSearch(query) {
 async function searchGeoNames(query, type) {
     try {
         let url = `${API}/geonames/search?q=${encodeURIComponent(query)}&type=${type}`;
-        if (type === 'cities' && currentPopFilter > 0) {
-            url += `&minPopulation=${currentPopFilter}`;
-        }
         const res = await fetch(url);
         const data = await res.json();
         if (data.results && data.results.length > 0) {
-            renderGeoResults(data.results, type);
+            let filtered = data.results;
+            if (type === 'cities' && currentPopFilter > 0) {
+                filtered = filtered.filter(r => r.population >= currentPopFilter);
+            }
+            if (filtered.length > 0) {
+                renderGeoResults(filtered, type);
+            } else {
+                const dropdown = document.getElementById('geoSearchDropdown');
+                dropdown.innerHTML = '<div style="padding:15px;text-align:center;color:#9ca3af;">No results matching population filter</div>';
+                dropdown.style.display = 'block';
+            }
         } else {
             const dropdown = document.getElementById('geoSearchDropdown');
             dropdown.innerHTML = '<div style="padding:15px;text-align:center;color:#9ca3af;">No results found</div>';
@@ -114,16 +119,22 @@ async function loadAllCountries() {
     try {
         const res = await fetch(`${API}/geonames/countries`);
         const data = await res.json();
-        if (data.results && data.results.length > 0) {
+        if (data.countries && data.countries.length > 0) {
             const dropdown = document.getElementById('geoSearchDropdown');
             dropdown.innerHTML = '<div style="padding:10px 15px;background:rgba(16,185,129,0.1);border-bottom:2px solid #10b981;font-weight:700;color:#059669;">🌍 All Countries (click to see cities)</div>' + 
-                data.results.map(r => {
+                data.countries.map(r => {
                     const safeName = r.name.replace(/'/g, "\\'");
                     const safeCode = r.countryCode.replace(/'/g, "\\'");
+                    const popText = r.population > 0 ? `👥 ${(r.population / 1000000).toFixed(1)}M` : '';
                     return `<div onclick="loadCountryCities('${safeCode}', '${safeName}')" style="padding:12px 15px;cursor:pointer;border-bottom:1px solid #f3f4f6;transition:all 0.2s;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='rgba(16,185,129,0.08)'" onmouseout="this.style.background='transparent'">
-                        <strong style="color:#1e293b;">${r.name}</strong>
-                        <span style="font-size:12px;color:#9ca3af;background:rgba(0,0,0,0.05);padding:3px 8px;border-radius:6px;">${r.countryCode}</span>
-                        <i class="fas fa-chevron-right" style="color:#9ca3af;font-size:12px;margin-left:8px;"></i>
+                        <div>
+                            <strong style="color:#1e293b;">${r.name}</strong>
+                            <span style="color:#6b7280;font-size:12px;margin-left:8px;">${r.capital || ''}</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="font-size:12px;color:#9ca3af;background:rgba(0,0,0,0.05);padding:3px 8px;border-radius:6px;">${popText}</span>
+                            <i class="fas fa-chevron-right" style="color:#9ca3af;font-size:12px;"></i>
+                        </div>
                     </div>`;
                 }).join('');
             dropdown.style.display = 'block';
@@ -135,9 +146,9 @@ async function loadAllCountries() {
 
 async function loadCountryCities(countryCode, countryName) {
     try {
-        const res = await fetch(`${API}/geonames/country/${countryCode}/cities`);
+        const res = await fetch(`${API}/geonames/cities/${countryCode}?limit=50`);
         const data = await res.json();
-        if (data.results && data.results.length > 0) {
+        if (data.cities && data.cities.length > 0) {
             const dropdown = document.getElementById('geoSearchDropdown');
             dropdown.innerHTML = `<div style="padding:10px 15px;background:rgba(16,185,129,0.1);border-bottom:2px solid #10b981;display:flex;align-items:center;justify-content:space-between;">
                 <div>
@@ -147,12 +158,15 @@ async function loadCountryCities(countryCode, countryName) {
                     <strong style="color:#059669;">🏙️ Major Cities in ${countryName}</strong>
                 </div>
             </div>` + 
-                data.results.map(r => {
+                data.cities.map(r => {
                     const safeName = r.name.replace(/'/g, "\\'");
                     const safeCountry = countryName.replace(/'/g, "\\'");
                     const popText = r.population > 0 ? `👥 ${(r.population / 1000).toFixed(0)}k` : '';
                     return `<div onclick="selectGeoLocation('${safeName}', '${safeCountry}')" style="padding:12px 15px;cursor:pointer;border-bottom:1px solid #f3f4f6;transition:all 0.2s;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='rgba(16,185,129,0.08)'" onmouseout="this.style.background='transparent'">
-                        <strong style="color:#1e293b;">${r.name}</strong>
+                        <div>
+                            <strong style="color:#1e293b;">${r.name}</strong>
+                            ${r.adminName ? `<span style="color:#9ca3af;font-size:12px;margin-left:6px;">(${r.adminName})</span>` : ''}
+                        </div>
                         <span style="font-size:12px;color:#9ca3af;background:rgba(0,0,0,0.05);padding:3px 8px;border-radius:6px;">${popText}</span>
                     </div>`;
                 }).join('');
@@ -505,10 +519,10 @@ function clearMonitorFilters() {
 async function removeAllMonitoring() {
     if (!confirm('⚠️ Remove ALL monitored domains?\n\nThis will delete all domains from monitoring. This action cannot be undone.')) return;
     try {
-        const res = await fetch(`${API}/monitoring/all`, { method: 'DELETE' });
+        const res = await fetch(`${API}/monitoring`, { method: 'DELETE' });
         const data = await res.json();
         if (data.success) {
-            showToast(`🗑️ Removed ${data.count} domain(s) from monitoring`, 'success');
+            showToast(`🗑️ Removed ${data.removed} domain(s) from monitoring`, 'success');
             loadMonitoring();
             refreshStats();
         } else {
@@ -794,7 +808,7 @@ async function testConnection(provider) {
         if (data.success) {
             resultDiv.innerHTML = `<div style="padding:12px;background:rgba(16,185,129,0.1);border-left:4px solid #10b981;border-radius:8px;"><strong style="color:#10b981;">✅ Connected!</strong> ${data.message}${data.latency ? ` (${data.latency}ms)` : ''}</div>`;
         } else {
-            resultDiv.innerHTML = `<div style="padding:12px;background:rgba(239,68,68,0.1);border-left:4px solid #ef4444;border-radius:8px;"><strong style="color:#ef4444;">❌ Failed:</strong> ${data.error || 'Connection error'}</div>`;
+            resultDiv.innerHTML = `<div style="padding:12px;background:rgba(239,68,68,0.1);border-left:4px solid #ef4444;border-radius:8px;"><strong style="color:#ef4444;">❌ Failed:</strong> ${data.error || 'Connection error'}${data.details ? `<br><small>${data.details}</small>` : ''}</div>`;
         }
         setTimeout(() => { resultDiv.style.display = 'none'; }, 10000);
     } catch (err) {
