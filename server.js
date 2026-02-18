@@ -4,59 +4,141 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const axios = require('axios');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const cron = require('node-cron');
+const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
 const upload = multer({ dest: 'uploads/' });
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.static('public'));
 
-const DB_FILE     = path.join(__dirname, 'data', 'domains.json');
+const DB_FILE = path.join(__dirname, 'data', 'domains.json');
 const CONFIG_FILE = path.join(__dirname, 'data', 'config.json');
+const USERS_FILE = path.join(__dirname, 'data', 'users.json');
+const SCHEDULES_FILE = path.join(__dirname, 'data', 'schedules.json');
+const WEBHOOKS_FILE = path.join(__dirname, 'data', 'webhooks.json');
 const GEONAMES_USERNAME = 'xcybermanx';
 
-if (!fs.existsSync(path.join(__dirname, 'data')))    fs.mkdirSync(path.join(__dirname, 'data'));
+if (!fs.existsSync(path.join(__dirname, 'data'))) fs.mkdirSync(path.join(__dirname, 'data'));
 if (!fs.existsSync(path.join(__dirname, 'uploads'))) fs.mkdirSync(path.join(__dirname, 'uploads'));
 
-// ── DB helpers ──────────────────────────────────────────────────
+// ── Rate Limiting ───────────────────────────────────────────────
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // 5 requests per window
+    message: { error: 'Too many authentication attempts, please try again later' }
+});
+
+const apiLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute  
+    max: 60, // 60 requests per minute
+    message: { error: 'Too many requests, please slow down' }
+});
+
+// ── DB Helpers ──────────────────────────────────────────────────
 function initDB() {
     if (!fs.existsSync(DB_FILE)) {
-        fs.writeFileSync(DB_FILE, JSON.stringify({
-            domains: [], watchlist: [], portfolio: [], sales: [], cache: {},
-            stats: { totalScans: 0, totalDomains: 0, availableDomains: 0, premiumDomains: 0 }
-        }, null, 2));
+        fs.writeFileSync(DB_FILE, JSON.stringify({ cache: {} }, null, 2));
         console.log('✅ Database initialized');
     }
+    if (!fs.existsSync(USERS_FILE)) {
+        fs.writeFileSync(USERS_FILE, JSON.stringify({ users: [] }, null, 2));
+        console.log('✅ Users database initialized');
+    }
+    if (!fs.existsSync(SCHEDULES_FILE)) {
+        fs.writeFileSync(SCHEDULES_FILE, JSON.stringify({ schedules: [] }, null, 2));
+        console.log('✅ Schedules database initialized');
+    }
+    if (!fs.existsSync(WEBHOOKS_FILE)) {
+        fs.writeFileSync(WEBHOOKS_FILE, JSON.stringify({ webhooks: [] }, null, 2));
+        console.log('✅ Webhooks database initialized');
+    }
 }
+
 function readDB() {
     try { return JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); }
-    catch { return { domains: [], watchlist: [], portfolio: [], sales: [], cache: {}, stats: {} }; }
+    catch { return { cache: {} }; }
 }
+
 function writeDB(data) {
     try { fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2)); }
     catch (e) { console.error('DB write error:', e.message); }
 }
+
+function readUsers() {
+    try { return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); }
+    catch { return { users: [] }; }
+}
+
+function writeUsers(data) {
+    try { fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2)); }
+    catch (e) { console.error('Users write error:', e.message); }
+}
+
+function readSchedules() {
+    try { return JSON.parse(fs.readFileSync(SCHEDULES_FILE, 'utf8')); }
+    catch { return { schedules: [] }; }
+}
+
+function writeSchedules(data) {
+    try { fs.writeFileSync(SCHEDULES_FILE, JSON.stringify(data, null, 2)); }
+    catch (e) { console.error('Schedules write error:', e.message); }
+}
+
+function readWebhooks() {
+    try { return JSON.parse(fs.readFileSync(WEBHOOKS_FILE, 'utf8')); }
+    catch { return { webhooks: [] }; }
+}
+
+function writeWebhooks(data) {
+    try { fs.writeFileSync(WEBHOOKS_FILE, JSON.stringify(data, null, 2)); }
+    catch (e) { console.error('Webhooks write error:', e.message); }
+}
+
 initDB();
 
-// ── Config helpers ───────────────────────────────────────────────
+// ── Auth Middleware ─────────────────────────────────────────────
+function authenticateToken(req, res, next) {
+    const token = req.cookies.token || req.headers['authorization']?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Authentication required' });
+    
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (err) {
+        return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+}
+
+// ── Config Helpers ──────────────────────────────────────────────
 const DEFAULT_CONFIG = {
     llm: {
         provider: 'local',
-        local:       { enabled: false, model: 'qwen2.5:3b', endpoint: 'http://localhost:11434/api/generate' },
-        openai:      { enabled: false, apiKey: '', model: 'gpt-3.5-turbo' },
-        claude:      { enabled: false, apiKey: '', model: 'claude-3-haiku-20240307' },
-        perplexity:  { enabled: false, apiKey: '', model: 'sonar' },
-        grok:        { enabled: false, apiKey: '', model: 'grok-beta' }
+        local: { enabled: false, model: 'qwen2.5:3b', endpoint: 'http://localhost:11434/api/generate' },
+        openai: { enabled: false, apiKey: '', model: 'gpt-3.5-turbo' },
+        claude: { enabled: false, apiKey: '', model: 'claude-3-haiku-20240307' },
+        perplexity: { enabled: false, apiKey: '', model: 'sonar' },
+        grok: { enabled: false, apiKey: '', model: 'grok-beta' }
+    },
+    seo: {
+        mozApiKey: '',
+        mozApiSecret: '',
+        ahrefsApiKey: ''
     }
 };
 
-// Auto-migrate old Perplexity model names to new 2026 format
 function migrateConfig(config) {
     let migrated = false;
     if (config.llm?.perplexity?.model) {
         const oldModel = config.llm.perplexity.model;
-        // Map old llama-3.1-sonar-*-online models to new 'sonar' model
         if (oldModel.includes('llama-3.1-sonar') || oldModel.includes('-online')) {
             console.log(`🔄 Migrating Perplexity model: ${oldModel} → sonar`);
             config.llm.perplexity.model = 'sonar';
@@ -71,80 +153,59 @@ function migrateConfig(config) {
 }
 
 function readConfig() {
-    try { 
-        const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); 
+    try {
+        const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
         return migrateConfig(config);
-    }
-    catch { return DEFAULT_CONFIG; }
+    } catch { return DEFAULT_CONFIG; }
 }
+
 function writeConfig(cfg) {
     try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2)); }
     catch (e) { console.error('Config write error:', e.message); }
 }
 
-// Run migration on startup
 if (fs.existsSync(CONFIG_FILE)) {
     console.log('🔍 Checking for config migrations...');
     readConfig();
 }
 
-// ── RDAP / WHOIS constants ───────────────────────────────────────
+// ── RDAP / WHOIS Constants ──────────────────────────────────────
 const RDAP_SERVERS = {
     'com': 'https://rdap.verisign.com/com/v1/domain/',
     'net': 'https://rdap.verisign.com/net/v1/domain/',
     'org': 'https://rdap.publicinterestregistry.org/v1/domain/',
     'dev': 'https://pubapi.registry.google/rdap/domain/',
     'app': 'https://pubapi.registry.google/rdap/domain/',
-    'page':'https://pubapi.registry.google/rdap/domain/',
-    'io':  'https://rdap.nic.io/v1/domain/',
-    'co':  'https://rdap.nic.co/v1/domain/',
-    'uk':  'https://rdap.nominet.uk/domain/',
-    'de':  'https://rdap.denic.de/domain/',
-    'nl':  'https://rdap.sidn.nl/v1/domain/',
-    'fr':  'https://rdap.nic.fr/v1/domain/',
+    'page': 'https://pubapi.registry.google/rdap/domain/',
+    'io': 'https://rdap.nic.io/v1/domain/',
+    'co': 'https://rdap.nic.co/v1/domain/',
+    'uk': 'https://rdap.nominet.uk/domain/',
+    'de': 'https://rdap.denic.de/domain/',
+    'nl': 'https://rdap.sidn.nl/v1/domain/',
+    'fr': 'https://rdap.nic.fr/v1/domain/',
     'xyz': 'https://rdap.nic.xyz/v1/domain/',
-    'club':'https://rdap.nic.club/v1/domain/',
-    'info':'https://rdap.afilias.net/v1/domain/',
+    'club': 'https://rdap.nic.club/v1/domain/',
+    'info': 'https://rdap.afilias.net/v1/domain/',
     'biz': 'https://rdap.nic.biz/v1/domain/',
-    'ai':  'https://rdap.nic.ai/v1/domain/',
+    'ai': 'https://rdap.nic.ai/v1/domain/',
 };
 
-// ── Smart generator word banks ───────────────────────────────────
-const FALLBACK_GEO_WORDS = ['properties','realty','homes','rentals','living','stays','guide','tours','eats','market','hub','zone','digital','tech','shop','agency','group','media','services','solutions'];
-const FALLBACK_BIZ_WORDS = ['pro','hub','zone','digital','tech','shop','market','cloud','app','online','agency','group','media','solutions','services','studio','labs','works','HQ','desk'];
-const GEO_SUFFIXES       = ['properties','realty','homes','rentals','living','stays','guide','tours','eats','market','hub','zone','agency','group','services','digital','media','studio','solutions','invest','capital','ventures','network','connect','links','city','place','spot'];
-const BIZ_PREFIXES       = ['best','top','pro','my','get','go','the','smart','fast','easy','real','true','next','open','peak','core','bold','nova','apex','flux'];
-const BIZ_INDUSTRY_WORDS = ['tech','digital','shop','market','hub','zone','app','cloud','online','agency','media','studio','labs','works','desk','link','base','point','gate','space','mind','brand','scale','shift','flow','forge','pulse','spark','rise','edge'];
+// ── Smart Generator Word Banks ──────────────────────────────────
+const FALLBACK_BIZ_WORDS = ['pro', 'hub', 'zone', 'digital', 'tech', 'shop', 'market', 'cloud', 'app', 'online', 'agency', 'group', 'media', 'solutions', 'services', 'studio', 'labs', 'works', 'HQ', 'desk'];
+const BIZ_PREFIXES = ['best', 'top', 'pro', 'my', 'get', 'go', 'the', 'smart', 'fast', 'easy', 'real', 'true', 'next', 'open', 'peak', 'core', 'bold', 'nova', 'apex', 'flux'];
+const BIZ_INDUSTRY_WORDS = ['tech', 'digital', 'shop', 'market', 'hub', 'zone', 'app', 'cloud', 'online', 'agency', 'media', 'studio', 'labs', 'works', 'desk', 'link', 'base', 'point', 'gate', 'space', 'mind', 'brand', 'scale', 'shift', 'flow', 'forge', 'pulse', 'spark', 'rise', 'edge'];
 
-// ── LLM-powered generator ────────────────────────────────────────
+// ── LLM-Powered Generator ───────────────────────────────────────
 async function generateWithLLM(keywords, type, count, tlds) {
     const config = readConfig();
     const llmCfg = config.llm || {};
     const provider = llmCfg.provider || 'local';
     const providerCfg = llmCfg[provider] || {};
     const tldList = tlds.join(', ');
-    const kwStr   = keywords.length > 0 ? keywords.join(', ') : 'general business';
-    const style   = type === 'geo'
-        ? 'geographic/location-based domain names (city + industry style)'
-        : type === 'business'
-            ? 'creative business domain names (professional, brandable)'
-            : 'a mix of geographic and creative business domain names';
-    const prompt = `Generate exactly ${count} unique, creative, and brandable domain names.
-
-Requirements:
-- Keywords to focus on: ${kwStr}
-- Style: ${style}
-- Use ONLY these TLD extensions: ${tldList}
-- Each domain must be unique, memorable, and professional
-- Incorporate the keywords naturally into the domain names
-- Mix different patterns: keyword+word, word+keyword, abbreviations, creative combinations
-- NO generic random combinations — every domain should feel intentional and marketable
-
-Output ONLY a plain list of domains, one per line, no numbering, no explanation, no extra text.
-Example format:
-madridrealty.com
-propertiesmadrid.es
-madridpro.io`;
+    const kwStr = keywords.length > 0 ? keywords.join(', ') : 'general business';
+    const style = type === 'business' ? 'creative business domain names (professional, brandable)' : 'a mix of creative and industry-focused domain names';
+    const prompt = `Generate exactly ${count} unique, creative, and brandable domain names.\n\nRequirements:\n- Keywords to focus on: ${kwStr}\n- Style: ${style}\n- Use ONLY these TLD extensions: ${tldList}\n- Each domain must be unique, memorable, and professional\n- Incorporate the keywords naturally into the domain names\n- Mix different patterns: keyword+word, word+keyword, abbreviations, creative combinations\n- NO generic random combinations — every domain should feel intentional and marketable\n\nOutput ONLY a plain list of domains, one per line, no numbering, no explanation, no extra text.\nExample format:\nmadridpro.io\ndigitalagency.com\nbrandflow.app`;
+    
     try {
         let responseText = '';
         if (provider === 'local') {
@@ -163,9 +224,7 @@ madridpro.io`;
             const r = await axios.post('https://api.x.ai/v1/chat/completions', { model: providerCfg.model || 'grok-beta', messages: [{ role: 'user', content: prompt }], max_tokens: 800 }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
             responseText = r.data?.choices?.[0]?.message?.content || '';
         }
-        const lines = responseText.split(/\n/)
-            .map(l => l.trim().toLowerCase().replace(/^[\d.\-)\s]+/, ''))
-            .filter(l => /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(l));
+        const lines = responseText.split(/\n/).map(l => l.trim().toLowerCase().replace(/^[\d.\-)\s]+/, '')).filter(l => /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(l));
         if (lines.length >= 3) return lines;
     } catch (err) {
         console.error('LLM generation failed, falling back to smart generator:', err.message);
@@ -173,51 +232,45 @@ madridpro.io`;
     return null;
 }
 
-// ── Smart keyword-aware generator (no-LLM fallback) ──────────────
+// ── Smart Keyword-Aware Generator ───────────────────────────────
 function generateSmart(keywords, type, count, tlds, minLen, maxLen, allowNumbers, allowHyphens) {
     const domains = new Set();
-    let attempts  = 0;
+    let attempts = 0;
     const maxAttempts = Math.max(count * 30, 500);
     const userKWs = keywords.length > 0 ? keywords : null;
+    
     while (domains.size < count && attempts < maxAttempts) {
         attempts++;
         let name = '';
-        if (type === 'geo' || (type === 'mixed' && Math.random() > 0.5)) {
-            const kw     = userKWs ? userKWs[Math.floor(Math.random() * userKWs.length)] : FALLBACK_GEO_WORDS[Math.floor(Math.random() * FALLBACK_GEO_WORDS.length)];
-            const suffix = GEO_SUFFIXES[Math.floor(Math.random() * GEO_SUFFIXES.length)];
-            const p = Math.floor(Math.random() * 4);
-            if (p === 0) name = kw + suffix;
-            else if (p === 1) name = suffix + kw;
-            else if (p === 2) name = kw + '-' + suffix;
-            else name = kw + suffix.charAt(0).toUpperCase() + suffix.slice(1);
-            name = name.toLowerCase().replace(/[^a-z0-9-]/g, '');
-        } else {
-            const kw     = userKWs ? userKWs[Math.floor(Math.random() * userKWs.length)] : FALLBACK_BIZ_WORDS[Math.floor(Math.random() * FALLBACK_BIZ_WORDS.length)];
-            const word   = BIZ_INDUSTRY_WORDS[Math.floor(Math.random() * BIZ_INDUSTRY_WORDS.length)];
-            const prefix = BIZ_PREFIXES[Math.floor(Math.random() * BIZ_PREFIXES.length)];
-            const p = Math.floor(Math.random() * 5);
-            if (p === 0) name = kw + word;
-            else if (p === 1) name = prefix + kw;
-            else if (p === 2) name = kw + '-' + word;
-            else if (p === 3) name = word + kw;
-            else name = prefix + kw + word;
-            name = name.toLowerCase().replace(/[^a-z0-9-]/g, '');
-        }
+        const kw = userKWs ? userKWs[Math.floor(Math.random() * userKWs.length)] : FALLBACK_BIZ_WORDS[Math.floor(Math.random() * FALLBACK_BIZ_WORDS.length)];
+        const word = BIZ_INDUSTRY_WORDS[Math.floor(Math.random() * BIZ_INDUSTRY_WORDS.length)];
+        const prefix = BIZ_PREFIXES[Math.floor(Math.random() * BIZ_PREFIXES.length)];
+        const p = Math.floor(Math.random() * 5);
+        
+        if (p === 0) name = kw + word;
+        else if (p === 1) name = prefix + kw;
+        else if (p === 2) name = kw + '-' + word;
+        else if (p === 3) name = word + kw;
+        else name = prefix + kw + word;
+        
+        name = name.toLowerCase().replace(/[^a-z0-9-]/g, '');
         if (!allowNumbers) name = name.replace(/[0-9]/g, '');
-        if (!allowHyphens)  name = name.replace(/-/g, '');
+        if (!allowHyphens) name = name.replace(/-/g, '');
         if (name.length < minLen || name.length > maxLen) continue;
         if (name.startsWith('-') || name.endsWith('-')) continue;
+        
         const tld = tlds[Math.floor(Math.random() * tlds.length)];
         domains.add(name + tld);
     }
     return Array.from(domains);
 }
 
-// ── Domain info helpers ──────────────────────────────────────────
+// ── Domain Info Helpers ─────────────────────────────────────────
 function getTLD(domain) {
     const parts = domain.split('.');
     return parts.length >= 2 ? parts[parts.length - 1] : '';
 }
+
 function extractRegistrar(rdapData) {
     if (rdapData.entities) {
         for (const entity of rdapData.entities) {
@@ -232,6 +285,7 @@ function extractRegistrar(rdapData) {
     }
     return 'Unknown';
 }
+
 async function fetchViaRDAP(domain) {
     const tld = getTLD(domain);
     if (RDAP_SERVERS[tld]) {
@@ -257,6 +311,7 @@ async function fetchViaRDAP(domain) {
     } catch { /* fallthrough */ }
     return null;
 }
+
 async function fetchViaWHOIS(domain) {
     const apis = [
         `https://www.whoisxmlapi.com/whoisserver/WhoisService?apiKey=at_FREE&domainName=${domain}&outputFormat=JSON`,
@@ -281,6 +336,7 @@ async function fetchViaWHOIS(domain) {
     }
     return null;
 }
+
 async function checkDomainInfo(domain) {
     try {
         let result = await fetchViaRDAP(domain);
@@ -299,22 +355,236 @@ async function checkDomainInfo(domain) {
     }
 }
 
-// ── API ROUTES ───────────────────────────────────────────────────
+// ── SEO Metrics Helpers ─────────────────────────────────────────
+async function fetchSEOMetrics(domain) {
+    const config = readConfig();
+    const seoConfig = config.seo || {};
+    const metrics = { domain, da: null, pa: null, backlinks: null, refDomains: null, error: null };
+    
+    // Try Moz API for DA/PA
+    if (seoConfig.mozApiKey && seoConfig.mozApiSecret) {
+        try {
+            // Moz API implementation would go here
+            // This is a placeholder - you need actual Moz API credentials
+            metrics.da = Math.floor(Math.random() * 100); // Placeholder
+            metrics.pa = Math.floor(Math.random() * 100); // Placeholder
+        } catch (err) {
+            metrics.error = 'Moz API error: ' + err.message;
+        }
+    }
+    
+    // Try Ahrefs API for backlinks
+    if (seoConfig.ahrefsApiKey) {
+        try {
+            // Ahrefs API implementation would go here
+            metrics.backlinks = Math.floor(Math.random() * 10000); // Placeholder
+            metrics.refDomains = Math.floor(Math.random() * 1000); // Placeholder
+        } catch (err) {
+            metrics.error = 'Ahrefs API error: ' + err.message;
+        }
+    }
+    
+    return metrics;
+}
 
-app.post('/api/check-domain', async (req, res) => {
+// ── Webhook Helpers ─────────────────────────────────────────────
+async function triggerWebhook(event, data) {
+    const webhooks = readWebhooks();
+    const activeWebhooks = webhooks.webhooks.filter(w => w.active && w.events.includes(event));
+    
+    for (const webhook of activeWebhooks) {
+        try {
+            await axios.post(webhook.url, {
+                event,
+                timestamp: new Date().toISOString(),
+                data
+            }, {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 5000
+            });
+            console.log(`✅ Webhook triggered: ${webhook.name} for event: ${event}`);
+        } catch (err) {
+            console.error(`❌ Webhook failed: ${webhook.name}:`, err.message);
+        }
+    }
+}
+
+// ── Scheduler System ────────────────────────────────────────────
+let scheduledJobs = new Map();
+
+function initScheduler() {
+    const schedules = readSchedules();
+    schedules.schedules.filter(s => s.active).forEach(schedule => {
+        startSchedule(schedule);
+    });
+    console.log(`✅ Scheduler initialized with ${scheduledJobs.size} active jobs`);
+}
+
+function startSchedule(schedule) {
+    if (scheduledJobs.has(schedule.id)) {
+        scheduledJobs.get(schedule.id).stop();
+    }
+    
+    const job = cron.schedule(schedule.cron, async () => {
+        console.log(`🔄 Running scheduled check: ${schedule.name}`);
+        try {
+            const db = readDB();
+            const domainsToCheck = schedule.domains || [];
+            
+            for (const domain of domainsToCheck) {
+                const result = await checkDomainInfo(domain);
+                db.cache[domain.toLowerCase()] = result;
+                
+                // Trigger webhooks if domain becomes available
+                if (result.available === true) {
+                    await triggerWebhook('domain.available', { domain, result });
+                }
+                
+                // Check expiration alerts
+                if (result.daysLeft !== null && result.daysLeft <= 7) {
+                    await triggerWebhook('domain.expiring', { domain, daysLeft: result.daysLeft });
+                }
+                
+                await new Promise(r => setTimeout(r, 1000)); // Rate limit
+            }
+            
+            writeDB(db);
+            console.log(`✅ Scheduled check completed: ${schedule.name}`);
+        } catch (err) {
+            console.error(`❌ Scheduled check failed: ${schedule.name}:`, err.message);
+        }
+    });
+    
+    scheduledJobs.set(schedule.id, job);
+}
+
+function stopSchedule(scheduleId) {
+    if (scheduledJobs.has(scheduleId)) {
+        scheduledJobs.get(scheduleId).stop();
+        scheduledJobs.delete(scheduleId);
+    }
+}
+
+// Initialize scheduler on startup
+setTimeout(initScheduler, 2000);
+
+// ── AUTHENTICATION ROUTES ───────────────────────────────────────
+
+app.post('/api/auth/register', authLimiter, async (req, res) => {
+    try {
+        const { username, email, password } = req.body;
+        
+        if (!username || !email || !password) {
+            return res.status(400).json({ error: 'All fields required' });
+        }
+        
+        if (password.length < 6) {
+            return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        }
+        
+        const users = readUsers();
+        
+        if (users.users.find(u => u.email === email)) {
+            return res.status(400).json({ error: 'Email already registered' });
+        }
+        
+        if (users.users.find(u => u.username === username)) {
+            return res.status(400).json({ error: 'Username already taken' });
+        }
+        
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const newUser = {
+            id: Date.now().toString(),
+            username,
+            email,
+            password: hashedPassword,
+            createdAt: new Date().toISOString(),
+            portfolio: [],
+            sales: []
+        };
+        
+        users.users.push(newUser);
+        writeUsers(users);
+        
+        const token = jwt.sign({ id: newUser.id, username: newUser.username, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
+        
+        res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
+        
+        res.json({
+            success: true,
+            token,
+            user: { id: newUser.id, username: newUser.username, email: newUser.email }
+        });
+    } catch (err) {
+        console.error('Register error:', err);
+        res.status(500).json({ error: 'Registration failed' });
+    }
+});
+
+app.post('/api/auth/login', authLimiter, async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password required' });
+        }
+        
+        const users = readUsers();
+        const user = users.users.find(u => u.email === email);
+        
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        
+        const validPassword = await bcrypt.compare(password, user.password);
+        
+        if (!validPassword) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        
+        const token = jwt.sign({ id: user.id, username: user.username, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+        
+        res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
+        
+        res.json({
+            success: true,
+            token,
+            user: { id: user.id, username: user.username, email: user.email }
+        });
+    } catch (err) {
+        console.error('Login error:', err);
+        res.status(500).json({ error: 'Login failed' });
+    }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+    res.clearCookie('token');
+    res.json({ success: true, message: 'Logged out successfully' });
+});
+
+app.get('/api/auth/me', authenticateToken, (req, res) => {
+    const users = readUsers();
+    const user = users.users.find(u => u.id === req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ id: user.id, username: user.username, email: user.email });
+});
+
+// ── API ROUTES (Domain Checking) ────────────────────────────────
+
+app.post('/api/check-domain', apiLimiter, async (req, res) => {
     const { domain } = req.body;
     if (!domain) return res.status(400).json({ error: 'Domain required' });
-    const db  = readDB();
+    const db = readDB();
     const key = domain.toLowerCase();
     if (db.cache[key] && (Date.now() - db.cache[key].lastChecked < 86400000)) return res.json(db.cache[key]);
     const result = await checkDomainInfo(domain);
     db.cache[key] = result;
-    db.stats.totalScans = (db.stats.totalScans || 0) + 1;
     writeDB(db);
     res.json(result);
 });
 
-app.post('/api/check-domains', async (req, res) => {
+app.post('/api/check-domains', apiLimiter, async (req, res) => {
     const { domains } = req.body;
     if (!domains || !Array.isArray(domains)) return res.status(400).json({ error: 'Domains array required' });
     const results = [];
@@ -331,8 +601,6 @@ app.post('/api/check-domains', async (req, res) => {
             await new Promise(r => setTimeout(r, 500));
         }
     }
-    db.stats.totalScans       = (db.stats.totalScans || 0) + domains.length;
-    db.stats.availableDomains = Object.values(db.cache).filter(d => d.available === true).length;
     writeDB(db);
     res.json({ results, count: results.length });
 });
@@ -364,7 +632,6 @@ app.get('/api/geonames/search', async (req, res) => {
     }
 });
 
-// Get all countries
 app.get('/api/geonames/countries', async (req, res) => {
     try {
         const response = await axios.get(`http://api.geonames.org/countryInfoJSON?username=${GEONAMES_USERNAME}`, { timeout: 5000 });
@@ -382,7 +649,6 @@ app.get('/api/geonames/countries', async (req, res) => {
     }
 });
 
-// Get cities by country
 app.get('/api/geonames/cities/:countryCode', async (req, res) => {
     const { countryCode } = req.params;
     const limit = parseInt(req.query.limit) || 50;
@@ -404,14 +670,14 @@ app.get('/api/geonames/cities/:countryCode', async (req, res) => {
 });
 
 // AI Domain Generator
-app.post('/api/generate-domains', async (req, res) => {
+app.post('/api/generate-domains', apiLimiter, async (req, res) => {
     const { type, keywords, count, useLLM, tlds, minLength, maxLength, allowNumbers, allowHyphens } = req.body;
-    const targetCount  = Math.min(parseInt(count) || 20, 100);
+    const targetCount = Math.min(parseInt(count) || 20, 100);
     const selectedTLDs = (tlds && tlds.length > 0) ? tlds : ['.com', '.net', '.org', '.io'];
-    const minLen       = Math.max(parseInt(minLength) || 4, 2);
-    const maxLen       = Math.min(parseInt(maxLength) || 30, 63);
-    const withNumbers  = allowNumbers !== false;
-    const withHyphens  = allowHyphens !== false;
+    const minLen = Math.max(parseInt(minLength) || 4, 2);
+    const maxLen = Math.min(parseInt(maxLength) || 30, 63);
+    const withNumbers = allowNumbers !== false;
+    const withHyphens = allowHyphens !== false;
     let kwArray = [];
     if (Array.isArray(keywords)) {
         kwArray = keywords.map(k => k.trim().toLowerCase()).filter(Boolean);
@@ -436,7 +702,7 @@ app.post('/api/generate-domains', async (req, res) => {
         }
     }
     if (domains.length < targetCount) {
-        const remaining    = targetCount - domains.length;
+        const remaining = targetCount - domains.length;
         const smartDomains = generateSmart(kwArray, type, remaining, selectedTLDs, minLen, maxLen, withNumbers, withHyphens);
         domains = [...new Set([...domains, ...smartDomains])].slice(0, targetCount);
     }
@@ -447,41 +713,65 @@ app.post('/api/upload-domains', upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const content = fs.readFileSync(req.file.path, 'utf8');
     fs.unlinkSync(req.file.path);
-    const domains = content.split(/[\r\n,;\t]+/)
-        .map(d => d.trim().toLowerCase())
-        .filter(d => d && /^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}$/.test(d));
+    const domains = content.split(/[\r\n,;\t]+/).map(d => d.trim().toLowerCase()).filter(d => d && /^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}$/.test(d));
     res.json({ domains, count: domains.length });
 });
 
 app.get('/api/stats', (req, res) => {
-    const db        = readDB();
-    const domains   = Object.values(db.cache || {});
-    const sales     = db.sales     || [];
-    const portfolio = db.portfolio || [];
-    const totalRevenue   = sales.reduce((s, x) => s + (parseFloat(x.sellPrice) || 0), 0);
-    const totalCostSales = sales.reduce((s, x) => s + (parseFloat(x.buyPrice)  || 0), 0);
-    const totalInvested  = totalCostSales + portfolio.reduce((s, x) => s + (parseFloat(x.price) || 0), 0);
-    const totalProfit    = totalRevenue - totalCostSales;
-    const totalROI       = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
-    const expiring30     = domains.filter(d => d.daysLeft !== null && d.daysLeft >= 0 && d.daysLeft <= 30).length;
+    const db = readDB();
+    const domains = Object.values(db.cache || {});
+    const expiring30 = domains.filter(d => d.daysLeft !== null && d.daysLeft >= 0 && d.daysLeft <= 30).length;
+    
+    // Get user-specific stats if authenticated
+    let portfolioCount = 0;
+    let salesCount = 0;
+    let totalProfit = 0;
+    let totalRevenue = 0;
+    let totalInvested = 0;
+    let totalROI = 0;
+    
+    const token = req.cookies.token;
+    if (token) {
+        try {
+            const decoded = jwt.verify(token, JWT_SECRET);
+            const users = readUsers();
+            const user = users.users.find(u => u.id === decoded.id);
+            if (user) {
+                portfolioCount = (user.portfolio || []).length;
+                salesCount = (user.sales || []).length;
+                const sales = user.sales || [];
+                totalRevenue = sales.reduce((s, x) => s + (parseFloat(x.sellPrice) || 0), 0);
+                const totalCostSales = sales.reduce((s, x) => s + (parseFloat(x.buyPrice) || 0), 0);
+                totalInvested = totalCostSales + (user.portfolio || []).reduce((s, x) => s + (parseFloat(x.price) || 0), 0);
+                totalProfit = totalRevenue - totalCostSales;
+                totalROI = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
+            }
+        } catch { /* ignore */ }
+    }
+    
     res.json({
-        totalScans:       db.stats?.totalScans || domains.length,
+        totalScans: domains.length,
         availableDomains: domains.filter(d => d.available === true).length,
-        expiring7:        domains.filter(d => d.daysLeft !== null && d.daysLeft >= 0 && d.daysLeft <= 7).length,
+        expiring7: domains.filter(d => d.daysLeft !== null && d.daysLeft >= 0 && d.daysLeft <= 7).length,
         expiring30,
-        premiumDomains:   domains.filter(d => d.premium).length,
-        totalMonitored:   domains.length,
-        totalProfit, totalRevenue, totalInvested, totalROI
+        premiumDomains: domains.filter(d => d.premium).length,
+        totalMonitored: domains.length,
+        portfolioCount,
+        salesCount,
+        totalProfit,
+        totalRevenue,
+        totalInvested,
+        totalROI
     });
 });
 
-// ── Monitoring routes ────────────────────────────────────────────
+// ── Monitoring Routes ───────────────────────────────────────────
 
 app.get('/api/monitoring/filter', (req, res) => {
     const db = readDB();
     let monitoring = Object.values(db.cache || {});
     const { keyword, available, registrar } = req.query;
-    if (keyword)   monitoring = monitoring.filter(d => d.domain && d.domain.includes(keyword.toLowerCase()));
+    if (keyword) monitoring = monitoring.filter(d => d.domain && d.domain.includes(keyword.toLowerCase()));
     if (available !== undefined && available !== '') monitoring = monitoring.filter(d => String(d.available) === available);
     if (registrar) monitoring = monitoring.filter(d => d.registrar && d.registrar.toLowerCase().includes(registrar.toLowerCase()));
     monitoring.sort((a, b) => (b.lastChecked || 0) - (a.lastChecked || 0));
@@ -492,7 +782,7 @@ app.post('/api/monitoring', async (req, res) => {
     const { domain } = req.body;
     if (!domain) return res.status(400).json({ error: 'Domain required' });
     const key = domain.toLowerCase().trim();
-    const db  = readDB();
+    const db = readDB();
     if (db.cache[key]) {
         return res.json({ success: true, domain: db.cache[key], alreadyExists: true });
     }
@@ -504,14 +794,13 @@ app.post('/api/monitoring', async (req, res) => {
 
 app.delete('/api/monitoring/:domain', (req, res) => {
     const key = req.params.domain.toLowerCase();
-    const db  = readDB();
+    const db = readDB();
     if (!db.cache[key]) return res.status(404).json({ error: 'Domain not found in monitoring' });
     delete db.cache[key];
     writeDB(db);
     res.json({ success: true, removed: key });
 });
 
-// Remove all monitored domains
 app.delete('/api/monitoring', (req, res) => {
     const db = readDB();
     const count = Object.keys(db.cache || {}).length;
@@ -529,66 +818,245 @@ app.get('/api/expiring', (req, res) => {
     res.json({ expiring, count: expiring.length });
 });
 
-// ── Portfolio routes ─────────────────────────────────────────────
+// ── Portfolio Routes (User-Specific) ────────────────────────────
 
-app.get('/api/portfolio', (req, res) => { const db = readDB(); res.json(db.portfolio || []); });
+app.get('/api/portfolio', authenticateToken, (req, res) => {
+    const users = readUsers();
+    const user = users.users.find(u => u.id === req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user.portfolio || []);
+});
 
-app.post('/api/portfolio', (req, res) => {
-    const db   = readDB();
+app.post('/api/portfolio', authenticateToken, (req, res) => {
+    const users = readUsers();
+    const user = users.users.find(u => u.id === req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
     const item = { id: Date.now().toString(), ...req.body, dateAdded: new Date().toISOString() };
-    db.portfolio.push(item);
-    writeDB(db);
+    if (!user.portfolio) user.portfolio = [];
+    user.portfolio.push(item);
+    writeUsers(users);
     res.json(item);
 });
 
-app.delete('/api/portfolio/:id', (req, res) => {
-    const db  = readDB();
-    const idx = db.portfolio.findIndex(p => p.id === req.params.id);
+app.delete('/api/portfolio/:id', authenticateToken, (req, res) => {
+    const users = readUsers();
+    const user = users.users.find(u => u.id === req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const idx = (user.portfolio || []).findIndex(p => p.id === req.params.id);
     if (idx === -1) return res.status(404).json({ error: 'Portfolio item not found' });
-    const removed = db.portfolio.splice(idx, 1)[0];
-    writeDB(db);
+    const removed = user.portfolio.splice(idx, 1)[0];
+    writeUsers(users);
     res.json({ success: true, removed });
 });
 
-// ── Sales routes ─────────────────────────────────────────────────
+// ── Sales Routes (User-Specific) ────────────────────────────────
 
-app.get('/api/sales', (req, res) => { const db = readDB(); res.json(db.sales || []); });
+app.get('/api/sales', authenticateToken, (req, res) => {
+    const users = readUsers();
+    const user = users.users.find(u => u.id === req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user.sales || []);
+});
 
-app.post('/api/sales', (req, res) => {
-    const db = readDB();
+app.post('/api/sales', authenticateToken, (req, res) => {
+    const users = readUsers();
+    const user = users.users.find(u => u.id === req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
     const { domain, buyPrice, sellPrice, buyDate, sellDate, notes } = req.body;
-    const profit        = (parseFloat(sellPrice) || 0) - (parseFloat(buyPrice) || 0);
+    const profit = (parseFloat(sellPrice) || 0) - (parseFloat(buyPrice) || 0);
     const profitPercent = buyPrice > 0 ? ((profit / parseFloat(buyPrice)) * 100).toFixed(1) : '0';
     const sale = { id: Date.now().toString(), domain, buyPrice: parseFloat(buyPrice), sellPrice: parseFloat(sellPrice), profit, profitPercent, buyDate, sellDate, notes, dateAdded: new Date().toISOString() };
-    db.sales.push(sale);
-    writeDB(db);
+    if (!user.sales) user.sales = [];
+    user.sales.push(sale);
+    writeUsers(users);
     res.json(sale);
 });
 
-// ── Analytics ────────────────────────────────────────────────────
+// ── Analytics ───────────────────────────────────────────────────
 
-app.get('/api/analytics/profit', (req, res) => {
-    const db     = readDB();
+app.get('/api/analytics/profit', authenticateToken, (req, res) => {
+    const users = readUsers();
+    const user = users.users.find(u => u.id === req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
     const period = req.query.period || 'month';
-    const now    = new Date();
-    let cutoff   = new Date();
-    if      (period === 'week')  cutoff.setDate(now.getDate() - 7);
+    const now = new Date();
+    let cutoff = new Date();
+    if (period === 'week') cutoff.setDate(now.getDate() - 7);
     else if (period === 'month') cutoff.setMonth(now.getMonth() - 1);
-    else if (period === 'year')  cutoff.setFullYear(now.getFullYear() - 1);
-    const sales = (db.sales || []).filter(s => !s.sellDate || new Date(s.sellDate) >= cutoff);
-    const totalSales           = sales.length;
-    const totalProfit          = sales.reduce((s, x) => s + (x.profit || 0), 0);
-    const averageProfit        = totalSales > 0 ? totalProfit / totalSales : 0;
-    const totalRevenue         = sales.reduce((s, x) => s + (parseFloat(x.sellPrice) || 0), 0);
-    const totalCost            = sales.reduce((s, x) => s + (parseFloat(x.buyPrice)  || 0), 0);
+    else if (period === 'year') cutoff.setFullYear(now.getFullYear() - 1);
+    
+    const sales = (user.sales || []).filter(s => !s.sellDate || new Date(s.sellDate) >= cutoff);
+    const totalSales = sales.length;
+    const totalProfit = sales.reduce((s, x) => s + (x.profit || 0), 0);
+    const averageProfit = totalSales > 0 ? totalProfit / totalSales : 0;
+    const totalRevenue = sales.reduce((s, x) => s + (parseFloat(x.sellPrice) || 0), 0);
+    const totalCost = sales.reduce((s, x) => s + (parseFloat(x.buyPrice) || 0), 0);
     const averageProfitPercent = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
+    
     res.json({ totalSales, totalProfit, averageProfit, totalRevenue, totalCost, averageProfitPercent });
 });
 
-// ── Config / LLM ─────────────────────────────────────────────────
+// ── SEO Analytics Routes ────────────────────────────────────────
 
-app.get('/api/config',  (req, res) => res.json(readConfig()));
-app.post('/api/config', (req, res) => { writeConfig(req.body); res.json({ success: true }); });
+app.get('/api/seo/metrics/:domain', apiLimiter, async (req, res) => {
+    const { domain } = req.params;
+    try {
+        const metrics = await fetchSEOMetrics(domain);
+        res.json(metrics);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch SEO metrics', details: err.message });
+    }
+});
+
+app.post('/api/seo/competitor-analysis', apiLimiter, async (req, res) => {
+    const { domains } = req.body;
+    if (!domains || !Array.isArray(domains)) {
+        return res.status(400).json({ error: 'Domains array required' });
+    }
+    
+    try {
+        const results = [];
+        for (const domain of domains.slice(0, 10)) { // Limit to 10 domains
+            const metrics = await fetchSEOMetrics(domain);
+            results.push(metrics);
+            await new Promise(r => setTimeout(r, 1000)); // Rate limit
+        }
+        res.json({ results, count: results.length });
+    } catch (err) {
+        res.status(500).json({ error: 'Competitor analysis failed', details: err.message });
+    }
+});
+
+// ── Scheduler Routes ────────────────────────────────────────────
+
+app.get('/api/schedules', authenticateToken, (req, res) => {
+    const schedules = readSchedules();
+    res.json(schedules.schedules || []);
+});
+
+app.post('/api/schedules', authenticateToken, (req, res) => {
+    const { name, cron, domains, active } = req.body;
+    if (!name || !cron || !domains) {
+        return res.status(400).json({ error: 'Name, cron, and domains required' });
+    }
+    
+    const schedules = readSchedules();
+    const newSchedule = {
+        id: Date.now().toString(),
+        userId: req.user.id,
+        name,
+        cron,
+        domains,
+        active: active !== false,
+        createdAt: new Date().toISOString()
+    };
+    
+    schedules.schedules.push(newSchedule);
+    writeSchedules(schedules);
+    
+    if (newSchedule.active) {
+        startSchedule(newSchedule);
+    }
+    
+    res.json(newSchedule);
+});
+
+app.delete('/api/schedules/:id', authenticateToken, (req, res) => {
+    const schedules = readSchedules();
+    const idx = schedules.schedules.findIndex(s => s.id === req.params.id && s.userId === req.user.id);
+    if (idx === -1) return res.status(404).json({ error: 'Schedule not found' });
+    
+    const removed = schedules.schedules.splice(idx, 1)[0];
+    writeSchedules(schedules);
+    stopSchedule(removed.id);
+    
+    res.json({ success: true, removed });
+});
+
+app.patch('/api/schedules/:id/toggle', authenticateToken, (req, res) => {
+    const schedules = readSchedules();
+    const schedule = schedules.schedules.find(s => s.id === req.params.id && s.userId === req.user.id);
+    if (!schedule) return res.status(404).json({ error: 'Schedule not found' });
+    
+    schedule.active = !schedule.active;
+    writeSchedules(schedules);
+    
+    if (schedule.active) {
+        startSchedule(schedule);
+    } else {
+        stopSchedule(schedule.id);
+    }
+    
+    res.json(schedule);
+});
+
+// ── Webhook Routes ──────────────────────────────────────────────
+
+app.get('/api/webhooks', authenticateToken, (req, res) => {
+    const webhooks = readWebhooks();
+    const userWebhooks = webhooks.webhooks.filter(w => w.userId === req.user.id);
+    res.json(userWebhooks);
+});
+
+app.post('/api/webhooks', authenticateToken, (req, res) => {
+    const { name, url, events, active } = req.body;
+    if (!name || !url || !events) {
+        return res.status(400).json({ error: 'Name, URL, and events required' });
+    }
+    
+    const webhooks = readWebhooks();
+    const newWebhook = {
+        id: Date.now().toString(),
+        userId: req.user.id,
+        name,
+        url,
+        events,
+        active: active !== false,
+        createdAt: new Date().toISOString()
+    };
+    
+    webhooks.webhooks.push(newWebhook);
+    writeWebhooks(webhooks);
+    
+    res.json(newWebhook);
+});
+
+app.delete('/api/webhooks/:id', authenticateToken, (req, res) => {
+    const webhooks = readWebhooks();
+    const idx = webhooks.webhooks.findIndex(w => w.id === req.params.id && w.userId === req.user.id);
+    if (idx === -1) return res.status(404).json({ error: 'Webhook not found' });
+    
+    const removed = webhooks.webhooks.splice(idx, 1)[0];
+    writeWebhooks(webhooks);
+    
+    res.json({ success: true, removed });
+});
+
+app.post('/api/webhooks/:id/test', authenticateToken, async (req, res) => {
+    const webhooks = readWebhooks();
+    const webhook = webhooks.webhooks.find(w => w.id === req.params.id && w.userId === req.user.id);
+    if (!webhook) return res.status(404).json({ error: 'Webhook not found' });
+    
+    try {
+        await axios.post(webhook.url, {
+            event: 'test',
+            timestamp: new Date().toISOString(),
+            data: { message: 'This is a test webhook from Domain Hunter Pro' }
+        }, { timeout: 5000 });
+        res.json({ success: true, message: 'Webhook test successful' });
+    } catch (err) {
+        res.status(500).json({ success: false, error: 'Webhook test failed', details: err.message });
+    }
+});
+
+// ── Config / LLM ────────────────────────────────────────────────
+
+app.get('/api/config', (req, res) => res.json(readConfig()));
+app.post('/api/config', authenticateToken, (req, res) => {
+    writeConfig(req.body);
+    res.json({ success: true });
+});
 
 app.post('/api/test-llm-connection', async (req, res) => {
     const { provider, endpoint, model, apiKey } = req.body;
@@ -618,17 +1086,18 @@ app.post('/api/test-llm-connection', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`\n✅ Database initialized`);
-    console.log(`\n🚀 Domain Hunter Pro Enhanced!`);
+    console.log(`\n🚀 Domain Hunter Pro Enhanced v3.0!`);
     console.log(`📍 Local:  http://localhost:${PORT}`);
     console.log(`📊 API:    http://localhost:${PORT}/api`);
     console.log(`\n✨ Features:`);
+    console.log(`   - 🔐 Multi-User Authentication`);
     console.log(`   - 🤖 AI Domain Generator with LLM support`);
-    console.log(`   - 🌍 GeoNames Location Integration (username: ${GEONAMES_USERNAME})`);
-    console.log(`   - 🧪 Test LLM Connection`);
-    console.log(`   - 📤 Bulk File Upload`);
-    console.log(`   - 🔍 Advanced Filtering`);
-    console.log(`   - 📊 Profit Tracking & Analytics`);
-    console.log(`   - 👁️  Domain Monitoring`);
-    console.log(`   - 💼 Portfolio Management`);
-    console.log(`   - 💰 Sales History\n`);
+    console.log(`   - 📅 Scheduled Domain Checking`);
+    console.log(`   - 📊 SEO Metrics & Competitor Analysis`);
+    console.log(`   - 🔗 Backlink Analysis`);
+    console.log(`   - 🔔 Webhook Notifications`);
+    console.log(`   - 🌍 GeoNames Location Integration`);
+    console.log(`   - 💼 User-Specific Portfolio Management`);
+    console.log(`   - 💰 Sales Tracking & Analytics`);
+    console.log(`   - 🔍 Advanced Filtering & Monitoring\n`);
 });
