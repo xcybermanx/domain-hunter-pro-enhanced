@@ -129,15 +129,28 @@
                             <small style="color:#6b7280;font-weight:400;margin-left:auto;">(Optional - enhances generation)</small>
                         </label>
                         
-                        <div style="display:flex;gap:10px;margin-bottom:12px;">
+                        <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
                             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
                                 <input type="radio" name="geoType" value="cities" checked onchange="clearGeoSearch()">
                                 <span style="font-size:14px;font-weight:600;">🏙️ Cities</span>
                             </label>
                             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-                                <input type="radio" name="geoType" value="countries" onchange="clearGeoSearch()">
+                                <input type="radio" name="geoType" value="countries" onchange="handleCountryMode()">
                                 <span style="font-size:14px;font-weight:600;">🌐 Countries</span>
                             </label>
+                            <button class="btn btn-secondary" onclick="loadAllCountries()" style="padding:6px 12px;font-size:13px;margin-left:8px;">
+                                <i class="fas fa-list"></i> Browse All Countries
+                            </button>
+                        </div>
+
+                        <div id="populationFilter" style="margin-bottom:12px;">
+                            <label style="font-size:13px;font-weight:600;color:#059669;margin-bottom:6px;display:block;">👥 Filter by Population:</label>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <button class="btn" onclick="setPopulationFilter(0)" data-pop="0" style="padding:6px 12px;font-size:12px;background:rgba(16,185,129,0.15);color:#059669;border:1px solid #10b981;">All Cities</button>
+                                <button class="btn" onclick="setPopulationFilter(100000)" data-pop="100000" style="padding:6px 12px;font-size:12px;">100k+</button>
+                                <button class="btn" onclick="setPopulationFilter(500000)" data-pop="500000" style="padding:6px 12px;font-size:12px;">500k+</button>
+                                <button class="btn" onclick="setPopulationFilter(1000000)" data-pop="1000000" style="padding:6px 12px;font-size:12px;">1M+</button>
+                            </div>
                         </div>
 
                         <div style="position:relative;">
@@ -150,7 +163,7 @@
                                 oninput="handleGeoSearch(this.value)"
                             >
                             <i class="fas fa-search" style="position:absolute;right:15px;top:50%;transform:translateY(-50%);color:#9ca3af;pointer-events:none;"></i>
-                            <div id="geoSearchDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.15);max-height:300px;overflow-y:auto;z-index:1000;margin-top:4px;"></div>
+                            <div id="geoSearchDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.15);max-height:400px;overflow-y:auto;z-index:1000;margin-top:4px;"></div>
                         </div>
 
                         <div id="selectedLocationBadge" style="margin-top:12px;display:none;">
@@ -198,9 +211,9 @@
                         <label style="font-weight:700;">🌐 Domain Extensions (TLDs)</label>
                         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-top:10px;">
                             <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".com" checked><span>.com</span></label>
-                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".net" checked><span>.net</span></label>
-                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".org" checked><span>.org</span></label>
-                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".io" checked><span>.io</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".net"><span>.net</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".org"><span>.org</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".io"><span>.io</span></label>
                             <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".ai"><span>.ai</span></label>
                             <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".co"><span>.co</span></label>
                             <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".app"><span>.app</span></label>
@@ -305,6 +318,7 @@
                         <input type="text" id="monitorRegistrar" placeholder="Registrar...">
                         <button class="btn btn-primary" onclick="applyMonitorFilters()"><i class="fas fa-filter"></i> Filter</button>
                         <button class="btn btn-secondary" onclick="clearMonitorFilters()"><i class="fas fa-times"></i> Clear</button>
+                        <button class="btn" style="background:#ef4444;color:#fff;margin-left:auto;" onclick="removeAllMonitoring()"><i class="fas fa-trash-alt"></i> Remove All</button>
                     </div>
                     <div id="monitoringResults"></div>
                 </div>
@@ -428,21 +442,21 @@
                         <h4><i class="fas fa-brain"></i> Claude</h4>
                         <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="claudeEnabled"><span>Enable Claude</span></label></div>
                         <div class="form-group"><label>API Key</label><input type="password" id="claudeKey" placeholder="sk-ant-..."></div>
-                        <div class="form-group"><label>Model</label><select id="claudeModel"><option value="claude-3-haiku">Claude 3 Haiku</option><option value="claude-3-sonnet">Claude 3 Sonnet</option><option value="claude-3-opus">Claude 3 Opus</option></select></div>
+                        <div class="form-group"><label>Model</label><select id="claudeModel"><option value="claude-3-haiku-20240307">Claude 3 Haiku</option><option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option><option value="claude-3-opus-20240229">Claude 3 Opus</option></select></div>
                         <button class="btn btn-secondary" onclick="testConnection('claude')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test Connection</button>
                     </div>
                     <div id="perplexityConfig" class="llm-config" style="display:none;">
                         <h4><i class="fas fa-bolt"></i> Perplexity API</h4>
                         <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="perplexityEnabled"><span>Enable Perplexity</span></label></div>
                         <div class="form-group"><label>API Key</label><input type="password" id="perplexityKey" placeholder="pplx-..."></div>
-                        <div class="form-group"><label>Model</label><select id="perplexityModel"><option value="llama-3.1-sonar-small-128k-online">Sonar Small</option><option value="llama-3.1-sonar-large-128k-online">Sonar Large</option></select></div>
+                        <div class="form-group"><label>Model</label><select id="perplexityModel"><option value="llama-3.1-sonar-small-128k-online">Sonar Small Online</option><option value="llama-3.1-sonar-large-128k-online">Sonar Large Online</option><option value="llama-3.1-sonar-huge-128k-online">Sonar Huge Online</option></select></div>
                         <button class="btn btn-secondary" onclick="testConnection('perplexity')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test Connection</button>
                     </div>
                     <div id="grokConfig" class="llm-config" style="display:none;">
                         <h4><i class="fas fa-robot"></i> Grok</h4>
                         <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="grokEnabled"><span>Enable Grok</span></label></div>
                         <div class="form-group"><label>API Key</label><input type="password" id="grokKey" placeholder="xai-..."></div>
-                        <div class="form-group"><label>Model</label><select id="grokModel"><option value="grok-1">Grok-1</option></select></div>
+                        <div class="form-group"><label>Model</label><select id="grokModel"><option value="grok-beta">Grok Beta</option></select></div>
                         <button class="btn btn-secondary" onclick="testConnection('grok')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test Connection</button>
                     </div>
                     <button class="btn btn-success btn-large" onclick="saveConfig()"><i class="fas fa-save"></i> Save Configuration</button>
@@ -456,6 +470,8 @@
     @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
     @keyframes pulse { 0%,100% { opacity:1;transform:scale(1); } 50% { opacity:0.7;transform:scale(1.1); } }
     @keyframes progressAnim { 0% { width:5%; } 50% { width:75%; } 100% { width:95%; } }
+    .domain-card-clickable { cursor:pointer; transition:transform 0.2s, box-shadow 0.2s; }
+    .domain-card-clickable:hover { transform:translateY(-4px); box-shadow:0 10px 30px rgba(0,0,0,0.2)!important; }
     </style>
 
     <script src="app.js"></script>
