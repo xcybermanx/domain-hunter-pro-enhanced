@@ -187,7 +187,7 @@
                     <div class="form-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="useLLM">
-                            <span>Use AI/LLM (Configure in Settings)</span>
+                            <span>🤖 Use AI/LLM (Qwen2.5:3b - Configure in Settings)</span>
                         </label>
                     </div>
                     
@@ -344,25 +344,28 @@
             <!-- Settings Page -->
             <div id="settings-page" class="page">
                 <div class="page-header">
-                    <h1>⚙️ Settings</h1>
+                    <h1>⚙️ AI Settings</h1>
+                    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1)); padding: 15px 20px; border-radius: 12px; border-left: 4px solid #10b981;">
+                        <strong style="color: #10b981;">✨ Recommended:</strong> <strong>Qwen2.5:3b</strong> - Best balance of speed & quality!
+                    </div>
                 </div>
                 
                 <div class="content-card">
-                    <h3>LLM Configuration</h3>
+                    <h3>🤖 LLM Configuration</h3>
                     
                     <div class="form-group">
                         <label>Provider</label>
                         <select id="llmProvider" onchange="updateLLMProvider()">
-                            <option value="local">Local (Ollama)</option>
-                            <option value="openai">OpenAI (GPT)</option>
-                            <option value="claude">Claude (Anthropic)</option>
-                            <option value="grok">Grok (xAI)</option>
+                            <option value="local">Local (Ollama) - FREE & PRIVATE</option>
+                            <option value="openai">OpenAI (GPT) - Paid</option>
+                            <option value="claude">Claude (Anthropic) - Paid</option>
+                            <option value="grok">Grok (xAI) - Paid</option>
                         </select>
                     </div>
                     
                     <!-- Local Config -->
                     <div id="localConfig" class="llm-config">
-                        <h4><i class="fas fa-server"></i> Local LLM (Ollama)</h4>
+                        <h4><i class="fas fa-server"></i> Local LLM (Ollama) - FREE</h4>
                         <div class="form-group">
                             <label class="checkbox-label">
                                 <input type="checkbox" id="localEnabled">
@@ -370,14 +373,15 @@
                             </label>
                         </div>
                         <div class="form-group">
-                            <label>Model</label>
+                            <label>Model <span style="color: #10b981; font-weight: 700;">⭐ Qwen2.5:3b Recommended</span></label>
                             <select id="localModel">
-                                <option value="llama2:7b">LLaMA 2 7B</option>
-                                <option value="mistral:7b">Mistral 7B</option>
-                                <option value="qwen:7b">Qwen 7B</option>
-                                <option value="gemma:7b">Gemma 7B</option>
-                                <option value="phi">Phi-2</option>
-                                <option value="tinyllama">TinyLlama</option>
+                                <option value="qwen2.5:3b" selected>⭐ Qwen2.5:3b (Recommended - Fast & Smart)</option>
+                                <option value="qwen2.5:7b">Qwen2.5:7b (Better Quality, Slower)</option>
+                                <option value="llama2:7b">LLaMA 2 7B (Meta)</option>
+                                <option value="mistral:7b">Mistral 7B (Very Good)</option>
+                                <option value="gemma:7b">Gemma 7B (Google)</option>
+                                <option value="phi">Phi-2 (Microsoft - Ultra Fast)</option>
+                                <option value="tinyllama">TinyLlama (Lightweight)</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -386,13 +390,13 @@
                         </div>
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle"></i>
-                            <strong>Setup Instructions:</strong>
+                            <strong>🚀 Quick Setup (3 steps):</strong>
                             <ol>
                                 <li>Install Ollama: <code>curl -fsSL https://ollama.com/install.sh | sh</code></li>
-                                <li>Pull model: <code>ollama pull qwen:7b</code></li>
+                                <li>Pull Qwen2.5:3b: <code>ollama pull qwen2.5:3b</code></li>
                                 <li>Start server: <code>ollama serve</code></li>
                             </ol>
-                            <a href="LLM_SETUP.md" target="_blank">Full Setup Guide →</a>
+                            <a href="https://github.com/xcybermanx/domain-hunter-pro-enhanced/blob/main/LLM_SETUP.md" target="_blank" style="color: #3b82f6; font-weight: 700;">📚 Full Setup Guide →</a>
                         </div>
                     </div>
                     
@@ -412,9 +416,9 @@
                         <div class="form-group">
                             <label>Model</label>
                             <select id="openaiModel">
-                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                                <option value="gpt-4">GPT-4</option>
-                                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Cheaper)</option>
+                                <option value="gpt-4">GPT-4 (Better)</option>
+                                <option value="gpt-4-turbo">GPT-4 Turbo (Fastest)</option>
                             </select>
                         </div>
                     </div>
@@ -435,9 +439,9 @@
                         <div class="form-group">
                             <label>Model</label>
                             <select id="claudeModel">
-                                <option value="claude-3-haiku">Claude 3 Haiku</option>
-                                <option value="claude-3-sonnet">Claude 3 Sonnet</option>
-                                <option value="claude-3-opus">Claude 3 Opus</option>
+                                <option value="claude-3-haiku">Claude 3 Haiku (Fast)</option>
+                                <option value="claude-3-sonnet">Claude 3 Sonnet (Balanced)</option>
+                                <option value="claude-3-opus">Claude 3 Opus (Best)</option>
                             </select>
                         </div>
                     </div>
