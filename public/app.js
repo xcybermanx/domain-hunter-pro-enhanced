@@ -51,6 +51,109 @@ function selectGenType(type) {
     document.getElementById(`opt-${type}`).classList.add('active');
 }
 
+// Test LLM Connection
+async function testConnection(provider) {
+    const resultDiv = document.getElementById('connectionTestResult');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Testing connection...</div>';
+    
+    try {
+        let config = {};
+        
+        if (provider === 'local') {
+            config = {
+                provider: 'local',
+                endpoint: document.getElementById('localEndpoint').value,
+                model: document.getElementById('localModel').value
+            };
+        } else if (provider === 'openai') {
+            config = {
+                provider: 'openai',
+                apiKey: document.getElementById('openaiKey').value,
+                model: document.getElementById('openaiModel').value
+            };
+        } else if (provider === 'claude') {
+            config = {
+                provider: 'claude',
+                apiKey: document.getElementById('claudeKey').value,
+                model: document.getElementById('claudeModel').value
+            };
+        } else if (provider === 'perplexity') {
+            config = {
+                provider: 'perplexity',
+                apiKey: document.getElementById('perplexityKey').value,
+                model: document.getElementById('perplexityModel').value
+            };
+        } else if (provider === 'grok') {
+            config = {
+                provider: 'grok',
+                apiKey: document.getElementById('grokKey').value,
+                model: document.getElementById('grokModel').value
+            };
+        }
+        
+        const res = await fetch(`${API}/test-llm-connection`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(34, 197, 94, 0.1)); border-left: 4px solid #10b981; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-check-circle" style="color: #10b981; font-size: 24px;"></i>
+                        <div>
+                            <strong style="color: #10b981; font-size: 16px;">✅ Connection Successful!</strong>
+                            <p style="margin: 5px 0 0 0; color: #059669;">${data.message || 'LLM is responding correctly'}</p>
+                            ${data.model ? `<p style="margin: 5px 0 0 0; color: #6b7280; font-size: 13px;">Model: ${data.model}</p>` : ''}
+                            ${data.latency ? `<p style="margin: 5px 0 0 0; color: #6b7280; font-size: 13px;">Response time: ${data.latency}ms</p>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1)); border-left: 4px solid #ef4444; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-times-circle" style="color: #ef4444; font-size: 24px;"></i>
+                        <div>
+                            <strong style="color: #ef4444; font-size: 16px;">❌ Connection Failed</strong>
+                            <p style="margin: 5px 0 0 0; color: #dc2626;">${data.error || 'Unable to connect to LLM'}</p>
+                            ${data.details ? `<p style="margin: 5px 0 0 0; color: #6b7280; font-size: 13px;">${data.details}</p>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Auto-hide after 10 seconds
+        setTimeout(() => {
+            resultDiv.style.opacity = '0';
+            setTimeout(() => {
+                resultDiv.style.display = 'none';
+                resultDiv.style.opacity = '1';
+            }, 500);
+        }, 10000);
+        
+    } catch (err) {
+        console.error('Test connection error:', err);
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1)); border-left: 4px solid #ef4444; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-exclamation-triangle" style="color: #ef4444; font-size: 24px;"></i>
+                    <div>
+                        <strong style="color: #ef4444; font-size: 16px;">⚠️ Error Testing Connection</strong>
+                        <p style="margin: 5px 0 0 0; color: #dc2626;">${err.message || 'Network error or server unavailable'}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
+
 // Refresh statistics
 async function refreshStats() {
     try {
@@ -485,6 +588,13 @@ async function loadConfig() {
             document.getElementById('claudeModel').value = config.llm.claude.model;
         }
         
+        // Perplexity config
+        if (config.llm.perplexity) {
+            document.getElementById('perplexityEnabled').checked = config.llm.perplexity.enabled;
+            document.getElementById('perplexityKey').value = config.llm.perplexity.apiKey || '';
+            document.getElementById('perplexityModel').value = config.llm.perplexity.model;
+        }
+        
         // Grok config
         if (config.llm.grok) {
             document.getElementById('grokEnabled').checked = config.llm.grok.enabled;
@@ -510,6 +620,12 @@ function updateLLMProvider() {
     if (selectedConfig) {
         selectedConfig.style.display = 'block';
     }
+    
+    // Hide test result when switching providers
+    const resultDiv = document.getElementById('connectionTestResult');
+    if (resultDiv) {
+        resultDiv.style.display = 'none';
+    }
 }
 
 // Save config
@@ -531,6 +647,11 @@ async function saveConfig() {
                 enabled: document.getElementById('claudeEnabled').checked,
                 apiKey: document.getElementById('claudeKey').value,
                 model: document.getElementById('claudeModel').value
+            },
+            perplexity: {
+                enabled: document.getElementById('perplexityEnabled').checked,
+                apiKey: document.getElementById('perplexityKey').value,
+                model: document.getElementById('perplexityModel').value
             },
             grok: {
                 enabled: document.getElementById('grokEnabled').checked,
