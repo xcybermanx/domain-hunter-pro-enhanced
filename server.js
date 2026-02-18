@@ -62,7 +62,7 @@ async function initDB() {
                     provider: 'local',
                     local: {
                         enabled: false,
-                        model: 'llama',
+                        model: 'qwen2.5:3b',
                         endpoint: 'http://localhost:11434/api/generate'
                     },
                     openai: {
@@ -74,6 +74,11 @@ async function initDB() {
                         enabled: false,
                         apiKey: '',
                         model: 'claude-3-sonnet'
+                    },
+                    perplexity: {
+                        enabled: false,
+                        apiKey: '',
+                        model: 'llama-3.1-sonar-small-128k-online'
                     },
                     grok: {
                         enabled: false,
@@ -273,9 +278,10 @@ app.get('/api/config', async (req, res) => {
         const config = await readConfig();
         const safeConfig = JSON.parse(JSON.stringify(config));
         
-        if (safeConfig.llm.openai.apiKey) safeConfig.llm.openai.apiKey = '***hidden***';
-        if (safeConfig.llm.claude.apiKey) safeConfig.llm.claude.apiKey = '***hidden***';
-        if (safeConfig.llm.grok.apiKey) safeConfig.llm.grok.apiKey = '***hidden***';
+        if (safeConfig.llm.openai?.apiKey) safeConfig.llm.openai.apiKey = '***hidden***';
+        if (safeConfig.llm.claude?.apiKey) safeConfig.llm.claude.apiKey = '***hidden***';
+        if (safeConfig.llm.perplexity?.apiKey) safeConfig.llm.perplexity.apiKey = '***hidden***';
+        if (safeConfig.llm.grok?.apiKey) safeConfig.llm.grok.apiKey = '***hidden***';
         
         res.json(safeConfig);
     } catch (error) {
@@ -289,6 +295,217 @@ app.post('/api/config', async (req, res) => {
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
+    }
+});
+
+// Test LLM Connection
+app.post('/api/test-llm-connection', async (req, res) => {
+    try {
+        const { provider, apiKey, model, endpoint } = req.body;
+        const startTime = Date.now();
+        
+        if (provider === 'local') {
+            // Test Ollama
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: model,
+                        prompt: 'Say "test"',
+                        stream: false
+                    })
+                });
+                
+                if (!response.ok) {
+                    return res.json({ 
+                        success: false, 
+                        error: 'Ollama connection failed', 
+                        details: `HTTP ${response.status}: ${response.statusText}` 
+                    });
+                }
+                
+                const data = await response.json();
+                const latency = Date.now() - startTime;
+                
+                return res.json({ 
+                    success: true, 
+                    message: 'Connected to local Ollama successfully!',
+                    model: model,
+                    latency: latency
+                });
+            } catch (error) {
+                return res.json({ 
+                    success: false, 
+                    error: 'Cannot connect to Ollama', 
+                    details: `Make sure Ollama is running: ollama serve` 
+                });
+            }
+        } else if (provider === 'openai') {
+            // Test OpenAI
+            try {
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [{ role: 'user', content: 'test' }],
+                        max_tokens: 5
+                    })
+                });
+                
+                const data = await response.json();
+                const latency = Date.now() - startTime;
+                
+                if (data.error) {
+                    return res.json({ 
+                        success: false, 
+                        error: 'OpenAI API Error', 
+                        details: data.error.message 
+                    });
+                }
+                
+                return res.json({ 
+                    success: true, 
+                    message: 'OpenAI API connected successfully!',
+                    model: model,
+                    latency: latency
+                });
+            } catch (error) {
+                return res.json({ 
+                    success: false, 
+                    error: 'OpenAI connection failed', 
+                    details: error.message 
+                });
+            }
+        } else if (provider === 'claude') {
+            // Test Claude
+            try {
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01'
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [{ role: 'user', content: 'test' }],
+                        max_tokens: 10
+                    })
+                });
+                
+                const data = await response.json();
+                const latency = Date.now() - startTime;
+                
+                if (data.error) {
+                    return res.json({ 
+                        success: false, 
+                        error: 'Claude API Error', 
+                        details: data.error.message 
+                    });
+                }
+                
+                return res.json({ 
+                    success: true, 
+                    message: 'Claude API connected successfully!',
+                    model: model,
+                    latency: latency
+                });
+            } catch (error) {
+                return res.json({ 
+                    success: false, 
+                    error: 'Claude connection failed', 
+                    details: error.message 
+                });
+            }
+        } else if (provider === 'perplexity') {
+            // Test Perplexity
+            try {
+                const response = await fetch('https://api.perplexity.ai/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [{ role: 'user', content: 'test' }]
+                    })
+                });
+                
+                const data = await response.json();
+                const latency = Date.now() - startTime;
+                
+                if (data.error) {
+                    return res.json({ 
+                        success: false, 
+                        error: 'Perplexity API Error', 
+                        details: data.error.message 
+                    });
+                }
+                
+                return res.json({ 
+                    success: true, 
+                    message: 'Perplexity API connected successfully!',
+                    model: model,
+                    latency: latency
+                });
+            } catch (error) {
+                return res.json({ 
+                    success: false, 
+                    error: 'Perplexity connection failed', 
+                    details: error.message 
+                });
+            }
+        } else if (provider === 'grok') {
+            // Test Grok
+            try {
+                const response = await fetch('https://api.x.ai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [{ role: 'user', content: 'test' }],
+                        max_tokens: 5
+                    })
+                });
+                
+                const data = await response.json();
+                const latency = Date.now() - startTime;
+                
+                if (data.error) {
+                    return res.json({ 
+                        success: false, 
+                        error: 'Grok API Error', 
+                        details: data.error.message 
+                    });
+                }
+                
+                return res.json({ 
+                    success: true, 
+                    message: 'Grok API connected successfully!',
+                    model: model,
+                    latency: latency
+                });
+            } catch (error) {
+                return res.json({ 
+                    success: false, 
+                    error: 'Grok connection failed', 
+                    details: error.message 
+                });
+            }
+        } else {
+            return res.json({ success: false, error: 'Unknown provider' });
+        }
+    } catch (error) {
+        res.json({ success: false, error: error.message });
     }
 });
 
@@ -790,6 +1007,7 @@ initDB().then(() => {
         console.log(`📊 API: http://localhost:${PORT}/api`);
         console.log(`\n✨ Features:`);
         console.log(`   - 🤖 AI Domain Generator with LLM support`);
+        console.log(`   - 🧪 Test LLM Connection`);
         console.log(`   - 📤 Bulk File Upload`);
         console.log(`   - 🔍 Advanced Filtering`);
         console.log(`   - 📊 Profit Tracking & Analytics`);
