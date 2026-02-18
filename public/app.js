@@ -2,7 +2,7 @@
 const API = '/api';
 let selectedGenType = 'geo';
 
-// ── Navigation ──────────────────────────────────────────────────
+// ── Navigation ──────────────────────────────────────────
 function navigate(page) {
     document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -14,6 +14,7 @@ function navigate(page) {
     else if (page === 'portfolio')  loadPortfolio();
     else if (page === 'settings')   loadConfig();
     else if (page === 'dashboard')  refreshStats();
+    else if (page === 'expiring')   loadExpiring(30);
     event.preventDefault();
     return false;
 }
@@ -25,7 +26,7 @@ function selectGenType(type) {
     if (el) el.classList.add('active');
 }
 
-// ── Custom TLD manager ──────────────────────────────────────────
+// ── Custom TLD manager ───────────────────────────────────
 const customTLDs = new Set();
 
 function addCustomTLD() {
@@ -74,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('🎯 Domain Hunter Pro initialized');
 });
 
-// ── Stats ────────────────────────────────────────────────────────
+// ── Stats ────────────────────────────────────────────────────
 async function refreshStats() {
     try {
         const res   = await fetch(`${API}/stats`);
@@ -88,11 +89,39 @@ async function refreshStats() {
         document.getElementById('totalInvested').textContent    = `$${(stats.totalInvested || 0).toFixed(0)}`;
         document.getElementById('totalROI').textContent         = `${(stats.totalROI       || 0).toFixed(1)}%`;
         document.getElementById('monitorBadge').textContent     = stats.totalMonitored    || 0;
+        document.getElementById('expiringBadge').textContent    = stats.expiring30        || 0;
+
+        // Load top 3 next expiring
+        const expRes = await fetch(`${API}/expiring?maxDays=365`);
+        const expData = await expRes.json();
+        const top3 = (expData.expiring || []).slice(0, 3);
+        const container = document.getElementById('nextExpiringList');
+        if (top3.length === 0) {
+            container.innerHTML = '<div style="text-align:center;color:#9ca3af;padding:40px;grid-column:1/-1;"><i class="fas fa-check-circle" style="font-size:48px;margin-bottom:15px;display:block;"></i>No domains expiring soon</div>';
+        } else {
+            container.innerHTML = top3.map(d => {
+                const days = d.daysLeft !== null ? d.daysLeft : '?';
+                const expDate = d.expirationDate ? new Date(d.expirationDate).toLocaleDateString() : 'N/A';
+                const color = days <= 7 ? '#ef4444' : days <= 30 ? '#f59e0b' : '#10b981';
+                return `<div style="background:linear-gradient(135deg,rgba(255,255,255,0.95),rgba(255,255,255,0.9));backdrop-filter:blur(10px);padding:20px;border-radius:16px;box-shadow:0 5px 20px rgba(0,0,0,0.1);border-left:4px solid ${color};">
+                    <div style="font-size:14px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">📍 Domain</div>
+                    <div style="font-size:18px;font-weight:800;color:#1e293b;margin-bottom:12px;word-break:break-all;">${d.domain}</div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <span style="font-size:13px;color:#6b7280;">Days Left:</span>
+                        <span style="font-size:24px;font-weight:800;color:${color};">${days}d</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:12px;color:#6b7280;">
+                        <span>📅 Expires: ${expDate}</span>
+                        <span>🏛️ ${d.registrar || 'N/A'}</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
     } catch (err) { console.error('Stats error:', err); }
 }
 setInterval(refreshStats, 30000);
 
-// ── Generator ────────────────────────────────────────────────────
+// ── Generator ────────────────────────────────────────────────
 async function generateDomains() {
     const keywords    = document.getElementById('genKeywords').value.trim();
     const count       = parseInt(document.getElementById('genCount').value) || 20;
@@ -102,6 +131,7 @@ async function generateDomains() {
     const minLength   = parseInt(document.getElementById('minLength').value)   || 4;
     const maxLength   = parseInt(document.getElementById('maxLength').value)   || 30;
     const allowNumbers= document.getElementById('allowNumbers').checked;
+    const allowHyphens= document.getElementById('allowHyphens').checked;
 
     if (tlds.length === 0) { alert('⚠️ Please select at least one TLD extension'); return; }
     if (!keywords) {
@@ -120,7 +150,7 @@ async function generateDomains() {
         const res  = await fetch(`${API}/generate-domains`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: selectedGenType, keywords, count, useLLM, tlds, minLength, maxLength, allowNumbers })
+            body: JSON.stringify({ type: selectedGenType, keywords, count, useLLM, tlds, minLength, maxLength, allowNumbers, allowHyphens })
         });
         const data = await res.json();
         if (data.domains && data.domains.length > 0) {
@@ -140,7 +170,7 @@ async function generateDomains() {
     }
 }
 
-// ── Scanner ──────────────────────────────────────────────────────
+// ── Scanner ───────────────────────────────────────────────────
 async function checkDomains() {
     const input = document.getElementById('domainInput').value.trim();
     if (!input) { alert('⚠️ Please enter domains to check'); return; }
@@ -189,7 +219,6 @@ async function uploadFile() {
     } catch { alert('❌ Error uploading file'); }
 }
 
-// Render scanner results table — with "Add to Monitoring" button per row
 function displayResults(results, containerId) {
     const container = document.getElementById(containerId);
     if (!results || results.length === 0) {
@@ -229,7 +258,6 @@ function displayResults(results, containerId) {
     container.innerHTML = html;
 }
 
-// Add a scanned domain to monitoring
 async function addToMonitoring(domain) {
     try {
         const res  = await fetch(`${API}/monitoring`, {
@@ -240,7 +268,6 @@ async function addToMonitoring(domain) {
         const data = await res.json();
         if (data.success) {
             const msg = data.alreadyExists ? `ℹ️ "${domain}" is already in monitoring.` : `✅ "${domain}" added to monitoring!`;
-            // Quick in-page toast instead of blocking alert
             showToast(msg, data.alreadyExists ? 'info' : 'success');
             refreshStats();
         }
@@ -249,7 +276,7 @@ async function addToMonitoring(domain) {
     }
 }
 
-// ── Monitoring ───────────────────────────────────────────────────
+// ── Monitoring ────────────────────────────────────────────────
 async function loadMonitoring() {
     try {
         const keyword   = document.getElementById('monitorKeyword')?.value   || '';
@@ -273,7 +300,6 @@ function clearMonitorFilters() {
     loadMonitoring();
 }
 
-// Render monitoring table — with "Remove" button per row
 function displayMonitoring(monitoring) {
     const container = document.getElementById('monitoringResults');
     if (!monitoring || monitoring.length === 0) {
@@ -312,7 +338,6 @@ function displayMonitoring(monitoring) {
     container.innerHTML = html;
 }
 
-// Remove a domain from monitoring
 async function removeFromMonitoring(domain) {
     if (!confirm(`Remove "${domain}" from monitoring?`)) return;
     try {
@@ -328,12 +353,62 @@ async function removeFromMonitoring(domain) {
     } catch { showToast('❌ Error removing domain', 'error'); }
 }
 
-// ── Portfolio ────────────────────────────────────────────────────
+// ── Expiring Domains ───────────────────────────────────────────────
+async function loadExpiring(maxDays) {
+    try {
+        const res  = await fetch(`${API}/expiring?maxDays=${maxDays}`);
+        const data = await res.json();
+        displayExpiring(data.expiring || []);
+    } catch {
+        document.getElementById('expiringResults').innerHTML = '<div class="empty-state"><p>Failed to load expiring domains</p></div>';
+    }
+}
+
+function applyExpiringFilter() {
+    const custom = parseInt(document.getElementById('customExpDays').value);
+    if (custom && custom > 0) {
+        loadExpiring(custom);
+    } else {
+        alert('⚠️ Please enter a valid number of days');
+    }
+}
+
+function displayExpiring(domains) {
+    const container = document.getElementById('expiringResults');
+    if (!domains || domains.length === 0) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-check-circle" style="color:#10b981;"></i><p>No domains expiring in this range</p></div>';
+        return;
+    }
+    let html = `<table>
+        <thead><tr>
+            <th>Domain</th><th>Status</th><th>Registrar</th>
+            <th>Expiration</th><th>Days Left</th><th>Method</th>
+        </tr></thead><tbody>`;
+    domains.forEach(d => {
+        const status = d.available === true
+            ? '<span class="badge badge-success">✓ Available</span>'
+            : '<span class="badge badge-danger">✗ Taken</span>';
+        const exp  = d.expirationDate ? new Date(d.expirationDate).toLocaleDateString() : 'N/A';
+        const days = d.daysLeft !== null ? d.daysLeft : '?';
+        const daysColor = days <= 7 ? '#ef4444' : days <= 30 ? '#f59e0b' : '#10b981';
+        html += `<tr>
+            <td><strong>${d.domain}</strong></td>
+            <td>${status}</td>
+            <td>${d.registrar || 'N/A'}</td>
+            <td>${exp}</td>
+            <td style="color:${daysColor};font-weight:800;font-size:16px;">${days}d</td>
+            <td><span style="font-size:11px;color:#6b7280;">${d.method || 'dns'}</span></td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+// ── Portfolio ──────────────────────────────────────────────────
 async function loadPortfolio() {
     try { const res = await fetch(`${API}/portfolio`); displayPortfolio(await res.json()); } catch {}
 }
 
-// Render portfolio table — with "Remove" button per row
 function displayPortfolio(portfolio) {
     const container = document.getElementById('portfolioList');
     if (!portfolio || portfolio.length === 0) {
@@ -378,7 +453,6 @@ async function addToPortfolio() {
     } catch { alert('❌ Error adding to portfolio'); }
 }
 
-// Remove a portfolio item
 async function removeFromPortfolio(id) {
     if (!confirm('Remove this domain from portfolio?')) return;
     try {
@@ -446,7 +520,7 @@ async function loadProfitAnalytics(period) {
     } catch {}
 }
 
-// ── Config / Settings ────────────────────────────────────────────
+// ── Config / Settings ──────────────────────────────────────────────
 async function loadConfig() {
     try {
         const res    = await fetch(`${API}/config`);
@@ -499,17 +573,17 @@ async function testConnection(provider) {
         const res  = await fetch(`${API}/test-llm-connection`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(config) });
         const data = await res.json();
         if (data.success) {
-            resultDiv.innerHTML = `<div style="padding:12px;background:rgba(16,185,129,0.1);border-left:4px solid #10b981;border-radius:8px;"><strong style="color:#10b981">✅ Connected!</strong> ${data.message}${data.latency ? ` (${data.latency}ms)` : ''}</div>`;
+            resultDiv.innerHTML = `<div style="padding:12px;background:rgba(16,185,129,0.1);border-left:4px solid #10b981;border-radius:8px;"><strong style="color:#10b981;">✅ Connected!</strong> ${data.message}${data.latency ? ` (${data.latency}ms)` : ''}</div>`;
         } else {
-            resultDiv.innerHTML = `<div style="padding:12px;background:rgba(239,68,68,0.1);border-left:4px solid #ef4444;border-radius:8px;"><strong style="color:#ef4444">❌ Failed:</strong> ${data.error || 'Connection error'}</div>`;
+            resultDiv.innerHTML = `<div style="padding:12px;background:rgba(239,68,68,0.1);border-left:4px solid #ef4444;border-radius:8px;"><strong style="color:#ef4444;">❌ Failed:</strong> ${data.error || 'Connection error'}</div>`;
         }
         setTimeout(() => { resultDiv.style.display = 'none'; }, 10000);
     } catch (err) {
-        resultDiv.innerHTML = `<div style="padding:12px;background:rgba(239,68,68,0.1);border-radius:8px;"><strong style="color:#ef4444">⚠️ Error:</strong> ${err.message}</div>`;
+        resultDiv.innerHTML = `<div style="padding:12px;background:rgba(239,68,68,0.1);border-radius:8px;"><strong style="color:#ef4444;">⚠️ Error:</strong> ${err.message}</div>`;
     }
 }
 
-// ── Toast notification ───────────────────────────────────────────
+// ── Toast notification ──────────────────────────────────────────────
 function showToast(message, type = 'success') {
     const existing = document.getElementById('toast-notification');
     if (existing) existing.remove();
