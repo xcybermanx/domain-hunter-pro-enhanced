@@ -21,15 +21,13 @@ function checkAuth() {
 }
 
 function showLoginForm() {
-    document.getElementById('loginForm').style.display = 'block';
-    document.getElementById('registerForm').style.display = 'none';
-    document.getElementById('authModalTitle').textContent = '🔐 Welcome Back';
+    document.getElementById('loginForm').classList.add('active');
+    document.getElementById('registerForm').classList.remove('active');
 }
 
 function showRegisterForm() {
-    document.getElementById('loginForm').style.display = 'none';
-    document.getElementById('registerForm').style.display = 'block';
-    document.getElementById('authModalTitle').textContent = '🚀 Create Your Account';
+    document.getElementById('loginForm').classList.remove('active');
+    document.getElementById('registerForm').classList.add('active');
 }
 
 async function handleLogin() {
@@ -106,7 +104,6 @@ function navigate(page) {
     else if (page === 'settings')   loadConfig();
     else if (page === 'dashboard')  refreshStats();
     else if (page === 'expiring')   loadExpiring(30);
-    else if (page === 'scheduler')  loadSchedules();
     else if (page === 'webhooks')   loadWebhooks();
     event.preventDefault();
     return false;
@@ -480,102 +477,6 @@ function displayExpiring(domains) {
     });
     html += '</tbody></table>';
     container.innerHTML = html;
-}
-
-// ── Scheduler ──────────────────────────────────────
-async function loadSchedules() {
-    try {
-        const res = await fetch(`${API}/schedules`, { credentials: 'include' });
-        const schedules = await res.json();
-        displaySchedules(schedules);
-    } catch {
-        document.getElementById('schedulesList').innerHTML = '<div class="empty-state"><p>Failed to load schedules</p></div>';
-    }
-}
-
-function displaySchedules(schedules) {
-    const container = document.getElementById('schedulesList');
-    if (!schedules || schedules.length === 0) {
-        container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar-alt"></i><p>No schedules yet. Create one above!</p></div>';
-        return;
-    }
-    let html = '<table><thead><tr><th>Name</th><th>Cron</th><th>Domains</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
-    schedules.forEach(s => {
-        const status = s.active ? '<span class="badge badge-success">✅ Active</span>' : '<span class="badge" style="background:#9ca3af">⏸️ Paused</span>';
-        const domainCount = (s.domains || []).length;
-        const safeId = s.id.replace(/'/g, "\\'");
-        html += `<tr>
-            <td><strong>${s.name}</strong></td>
-            <td><code>${s.cron}</code></td>
-            <td>${domainCount} domains</td>
-            <td>${status}</td>
-            <td>
-                <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="toggleSchedule('${safeId}')">
-                    <i class="fas fa-pause"></i> Toggle
-                </button>
-                <button class="btn" style="padding:4px 10px;font-size:12px;background:rgba(239,68,68,0.1);color:#ef4444;" onclick="deleteSchedule('${safeId}')">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        </tr>`;
-    });
-    html += '</tbody></table>';
-    container.innerHTML = html;
-}
-
-async function createSchedule() {
-    const name = document.getElementById('scheduleName').value.trim();
-    const cron = document.getElementById('scheduleCron').value.trim();
-    const domainsText = document.getElementById('scheduleDomains').value.trim();
-    if (!name || !cron || !domainsText) return alert('⚠️ Please fill all fields');
-    const domains = domainsText.split('\n').map(d => d.trim()).filter(Boolean);
-    try {
-        const res = await fetch(`${API}/schedules`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ name, cron, domains, active: true })
-        });
-        const data = await res.json();
-        if (data.id) {
-            showToast('✅ Schedule created!', 'success');
-            document.getElementById('scheduleName').value = '';
-            document.getElementById('scheduleCron').value = '';
-            document.getElementById('scheduleDomains').value = '';
-            loadSchedules();
-        } else {
-            alert('❌ Failed: ' + (data.error || 'Unknown error'));
-        }
-    } catch (err) {
-        alert('❌ Error: ' + err.message);
-    }
-}
-
-async function toggleSchedule(id) {
-    try {
-        const res = await fetch(`${API}/schedules/${id}/toggle`, { method: 'PATCH', credentials: 'include' });
-        const data = await res.json();
-        if (data.id) {
-            showToast(data.active ? '▶️ Schedule activated' : '⏸️ Schedule paused', 'success');
-            loadSchedules();
-        }
-    } catch (err) {
-        alert('❌ Error: ' + err.message);
-    }
-}
-
-async function deleteSchedule(id) {
-    if (!confirm('Delete this schedule?')) return;
-    try {
-        const res = await fetch(`${API}/schedules/${id}`, { method: 'DELETE', credentials: 'include' });
-        const data = await res.json();
-        if (data.success) {
-            showToast('🗑️ Schedule deleted', 'success');
-            loadSchedules();
-        }
-    } catch (err) {
-        alert('❌ Error: ' + err.message);
-    }
 }
 
 // ── Webhooks ──────────────────────────────────────
