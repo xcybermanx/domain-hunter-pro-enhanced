@@ -117,8 +117,52 @@
 
                     <div class="form-group" style="margin-top:20px;">
                         <label style="font-weight:700;">🔑 Keywords <span style="color:#ef4444;">*</span> <small style="color:#9ca3af;font-weight:400;">(your domains will be built around these)</small></label>
-                        <input type="text" id="genKeywords" placeholder="e.g. madrid, realty, invest — comma separated" style="font-size:15px;">
-                        <p style="color:#6b7280;font-size:12px;margin-top:6px;">💡 Tip: enter a city, niche, or brand word. The generator will use it as the core of every domain.</p>
+                        <input type="text" id="genKeywords" placeholder="e.g. loyer, invest, shop — comma separated" style="font-size:15px;">
+                        <p style="color:#6b7280;font-size:12px;margin-top:6px;">💡 Tip: enter a niche or brand word. The generator will use it as the core of every domain.</p>
+                    </div>
+
+                    <!-- 🌍 GeoNames Location Search -->
+                    <div style="margin-top:20px;padding:20px;background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(16,185,129,0.08));border:1px solid rgba(16,185,129,0.2);border-radius:12px;">
+                        <label style="font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                            <i class="fas fa-map-marker-alt" style="color:#10b981;"></i>
+                            🌍 Add Location from GeoNames
+                            <small style="color:#6b7280;font-weight:400;margin-left:auto;">(Optional - enhances generation)</small>
+                        </label>
+                        
+                        <div style="display:flex;gap:10px;margin-bottom:12px;">
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                <input type="radio" name="geoType" value="cities" checked onchange="clearGeoSearch()">
+                                <span style="font-size:14px;font-weight:600;">🏙️ Cities</span>
+                            </label>
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                <input type="radio" name="geoType" value="countries" onchange="clearGeoSearch()">
+                                <span style="font-size:14px;font-weight:600;">🌐 Countries</span>
+                            </label>
+                        </div>
+
+                        <div style="position:relative;">
+                            <input 
+                                type="text" 
+                                id="geoSearchInput" 
+                                placeholder="e.g. Paris, Madrid, Tokyo, France, Spain..." 
+                                style="font-size:14px;padding-right:40px;"
+                                autocomplete="off"
+                                oninput="handleGeoSearch(this.value)"
+                            >
+                            <i class="fas fa-search" style="position:absolute;right:15px;top:50%;transform:translateY(-50%);color:#9ca3af;pointer-events:none;"></i>
+                            <div id="geoSearchDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.15);max-height:300px;overflow-y:auto;z-index:1000;margin-top:4px;"></div>
+                        </div>
+
+                        <div id="selectedLocationBadge" style="margin-top:12px;display:none;">
+                            <div style="display:inline-flex;align-items:center;gap:10px;background:#fff;border:2px solid #10b981;border-radius:10px;padding:10px 16px;">
+                                <span id="selectedLocationText" style="font-size:14px;font-weight:700;color:#1e293b;"></span>
+                                <button onclick="clearSelectedLocation()" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:18px;line-height:1;padding:0;">×</button>
+                            </div>
+                        </div>
+
+                        <p style="color:#059669;font-size:12px;margin-top:10px;margin-bottom:0;">
+                            ✨ <strong>Example:</strong> Keyword "loyer" + Location "Paris" → generates <code>loyerparis.com</code>, <code>paris-loyer.fr</code>, <code>parloyer.io</code>
+                        </p>
                     </div>
 
                     <div class="form-row">
