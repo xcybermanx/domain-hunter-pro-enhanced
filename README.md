@@ -1,702 +1,486 @@
-# 🤖 Domain Hunter Pro Enhanced - AI Edition
-
-[![Node.js](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen)](https://nodejs.org/)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Version](https://img.shields.io/badge/version-3.0.0-orange)](package.json)
-[![AI Powered](https://img.shields.io/badge/AI-Powered-red)](README.md)
-
-A professional AI-powered domain research platform with intelligent domain generation, real-time monitoring, GeoNames location integration, and advanced filtering.
-
-## 🌟 New Features (v3.0)
-
-### 🤖 AI Domain Generator with LLM Support
-- **Multi-LLM Support**: Local (Ollama), OpenAI, Claude, Perplexity, Grok
-- **Geo-Domain Generation**: Intelligent city + country combinations
-- **GeoNames Integration**: Real location data for 250+ countries
-- **Custom Keywords**: Generate domains based on your keywords
-- **Bulk Generation**: Create 5-100 domains instantly
-- **Smart Fallback**: Works without LLM configuration
-
-### 🌍 GeoNames Location Integration
-- Browse all countries sorted by population
-- Search cities with population filtering (100k+, 500k+, 1M+)
-- Click country → view major cities
-- Select location → generate geo-targeted domains
-- Real-time location search with autocomplete
-
-### 📤 Bulk File Upload
-- Upload CSV/TXT files with domain lists
-- Automatic parsing and validation
-- Support for multiple formats
-
-### 🔍 Advanced Filtering
-- **Filter by expiration days**: 7, 30, 90, 180 days or custom
-- **Keyword search**: Find domains containing specific words
-- **Registrar filter**: Filter by GoDaddy, Namecheap, etc.
-- **Availability filter**: Available or taken domains
-- **Remove All**: Clear all monitored domains at once
-
-### 💼 Enhanced Portfolio & Profit Tracker
-- Registrar tracking
-- Custom notes per domain
-- Investment tracking
-- Sales history with ROI calculation
-- Profit analytics by period
-
-## ✨ Core Features
-
-### Backend (Node.js + Express)
-- ✅ Real DNS Resolution
-- ✅ RDAP/WHOIS Integration
-- ✅ JSON Database with auto-creation
-- ✅ Smart 24-hour caching
-- ✅ RESTful API architecture
-- ✅ Bulk operations support
-- ✅ File upload handling (multer)
-- ✅ GeoNames API integration
-
-### Frontend (Modern Interactive UI)
-- ✅ 8 specialized tabs
-- ✅ Live statistics dashboard
-- ✅ Real-time updates
-- ✅ Responsive design
-- ✅ Professional animations
-- ✅ Clickable dashboard cards
-
-## 🚀 Quick Start
-
-### Installation
-
-```bash
-# Clone repository
-git clone https://github.com/xcybermanx/domain-hunter-pro-enhanced.git
-cd domain-hunter-pro-enhanced
-
-# Install dependencies
-npm install
-
-# Start server
-npm start
-```
-
-### Access Application
-```
-http://localhost:3000
-```
-
-### Optional: Set Up Local LLM (Recommended)
-
-```bash
-# Install Ollama
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Pull recommended model
-ollama pull qwen2.5:3b
-
-# Start Ollama server
-ollama serve
-```
-
-Then go to **Settings** in the app and enable Local LLM.
-
-## 📊 Dashboard Statistics
-
-- **Total Scans**: Number of domains checked
-- **Available Domains**: Domains ready to register
-- **Expiring (7d)**: Domains expiring within 7 days
-- **Premium Domains**: High-value domains detected
-- **Total Monitored**: Domains in monitoring
-- **Total Profit**: Revenue from sales
-- **Total Revenue**: Total sales value
-- **Total Invested**: Portfolio investment value
-- **ROI**: Return on investment percentage
-
-## 🛠️ API Documentation
-
-### AI Domain Generator
-```http
-POST /api/generate-domains
-Content-Type: application/json
-
-{
-  "type": "geo",              // "geo", "business", "mixed"
-  "keywords": "loyer,invest", // comma-separated keywords
-  "count": 20,                // 5-100
-  "useLLM": true,             // use AI for generation
-  "tlds": [".com", ".fr"],   // selected TLDs
-  "minLength": 4,             // min domain name length
-  "maxLength": 30,            // max domain name length
-  "allowNumbers": true,
-  "allowHyphens": true,
-  "geoLocation": {            // optional location
-    "name": "Paris",
-    "country": "France"
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "domains": ["loyerparis.com", "paris-loyer.fr", ...],
-  "count": 20,
-  "usedLLM": true
-}
-```
-
-### GeoNames API
-
-**Search Locations:**
-```http
-GET /api/geonames/search?q=Paris&type=cities
-```
-
-**Get All Countries:**
-```http
-GET /api/geonames/countries
-```
-
-**Get Cities by Country:**
-```http
-GET /api/geonames/cities/FR?limit=50
-```
-
-### Bulk File Upload
-```http
-POST /api/upload-domains
-Content-Type: multipart/form-data
-
-file: domains.txt
-```
-
-**Response:**
-```json
-{
-  "domains": ["example.com", "test.com", ...],
-  "count": 150
-}
-```
-
-### Domain Monitoring
-
-**Add to Monitoring:**
-```http
-POST /api/monitoring
-Content-Type: application/json
-
-{
-  "domain": "example.com"
-}
-```
-
-**Remove from Monitoring:**
-```http
-DELETE /api/monitoring/example.com
-```
-
-**Remove All Monitored Domains:**
-```http
-DELETE /api/monitoring
-```
-
-**Filter Monitoring:**
-```http
-GET /api/monitoring/filter?keyword=tech&available=true&registrar=godaddy
-```
-
-### Expiring Domains
-```http
-GET /api/expiring?maxDays=30
-```
-
-**Response:**
-```json
-{
-  "expiring": [
-    {
-      "domain": "example.com",
-      "daysLeft": 15,
-      "expirationDate": "2026-03-05T00:00:00.000Z",
-      "registrar": "GoDaddy"
-    }
-  ],
-  "count": 1
-}
-```
-
-### Portfolio Management
-```http
-POST /api/portfolio
-Content-Type: application/json
-
-{
-  "domain": "example.com",
-  "price": 100,
-  "registrar": "GoDaddy",
-  "notes": "Investment domain"
-}
-```
-
-### Sales & Profit Tracking
-```http
-POST /api/sales
-Content-Type: application/json
-
-{
-  "domain": "example.com",
-  "buyPrice": 10,
-  "sellPrice": 100,
-  "buyDate": "2025-01-01",
-  "sellDate": "2026-02-18",
-  "notes": "Quick flip"
-}
-```
-
-**Get Profit Analytics:**
-```http
-GET /api/analytics/profit?period=month  // week, month, year
-```
-
-## 🎨 Features Guide
-
-### 1. AI Domain Generator
-
-**Geo-Domains with GeoNames:**
-1. Enter keyword: `loyer` (rent)
-2. Click "Browse All Countries"
-3. Select "France" → Choose "Paris"
-4. Select TLDs: `.com`, `.fr`
-5. Click "Generate Domains"
-
-**Results:**
-- `loyerparis.com`
-- `paris-loyer.fr`
-- `parloyer.io`
-- `locationparis.com`
-
-**Business Domains:**
-- Professional combinations
-- Market-tested patterns
-- Brandable names
-
-Examples:
-- `getmarketpro.com`
-- `cloudtechonline.io`
-- `bestshophub.com`
-
-### 2. Bulk Domain Scanner
-
-1. Enter domains (one per line) or upload file
-2. Click "Check Domains"
-3. View results with:
-   - Availability status
-   - Registrar information
-   - Expiration dates
-   - Days left
-   - RDAP/WHOIS method
-
-### 3. Domain Monitoring
-
-**Features:**
-- Automatically stores all scanned domains
-- Filter by keyword, availability, registrar
-- Track expiration dates
-- Last checked timestamps
-- Remove individual or all domains
-
-**Filters:**
-- **Keyword**: Search domain names
-- **Status**: Available/Taken
-- **Registrar**: Filter by specific registrar
-- **Remove All**: Clear all monitored domains
-
-### 4. Expiring Domains
-
-**Quick Filters:**
-- ≤ 7 days (critical)
-- ≤ 14 days (urgent)
-- ≤ 30 days (important)
-- ≤ 60 days
-- ≤ 90 days
-- Custom days
-
-**Use Cases:**
-- Find dropping domains
-- Plan renewals
-- Investment opportunities
-- Expired domain research
-
-### 5. Portfolio Management
-
-**Track:**
-- Domain names
-- Purchase prices
-- Registrar information
-- Custom notes
-- Purchase dates
-- Total investment value
-
-**Features:**
-- Add/Remove domains
-- View total investment
-- Track by registrar
-- Export capability
-
-### 6. Profit Tracker
-
-**Record Sales:**
-- Buy price
-- Sell price
-- Buy/Sell dates
-- Notes
-
-**Analytics:**
-- Total sales count
-- Total profit
-- Average profit per sale
-- Average ROI percentage
-- Period filters (week/month/year)
-
-**Automatic Calculations:**
-- Profit per sale
-- ROI percentage
-- Total revenue
-- Total costs
-
-## 💾 Database Structure
-
-```json
-{
-  "domains": [],
-  "watchlist": [],
-  "portfolio": [
-    {
-      "id": "1708176000000",
-      "domain": "mydomain.com",
-      "price": 100,
-      "registrar": "Namecheap",
-      "notes": "Investment",
-      "dateAdded": "2024-02-17T00:00:00.000Z"
-    }
-  ],
-  "sales": [
-    {
-      "id": "1708176000000",
-      "domain": "sold.com",
-      "buyPrice": 10,
-      "sellPrice": 100,
-      "profit": 90,
-      "profitPercent": "900.0",
-      "buyDate": "2025-01-01",
-      "sellDate": "2026-02-18",
-      "notes": "Quick flip"
-    }
-  ],
-  "cache": {
-    "example.com": {
-      "domain": "example.com",
-      "available": false,
-      "hasDNS": true,
-      "expirationDate": "2025-12-31T00:00:00.000Z",
-      "daysLeft": 365,
-      "registrar": "GoDaddy",
-      "method": "rdap",
-      "lastChecked": 1708176000000
-    }
-  },
-  "stats": {
-    "totalScans": 150,
-    "totalDomains": 45,
-    "availableDomains": 12,
-    "premiumDomains": 3
-  }
-}
-```
-
-## 🎯 Use Cases
-
-### 1. Domain Investor
-```
-1. Generate 50 geo-domains with AI + GeoNames
-2. Select location: Paris, France
-3. Keywords: "invest", "capital"
-4. Filter by "Available"
-5. Check expiration dates
-6. Add valuable finds to portfolio
-7. Track sales and ROI
-```
-
-### 2. International Business
-```
-1. Use GeoNames to browse target countries
-2. Select cities in each country
-3. Generate localized domains
-4. Check availability across TLDs
-5. Build international portfolio
-```
-
-### 3. Domain Flipper
-```
-1. Monitor expiring domains (7-30 days)
-2. Filter by availability
-3. Add to watchlist
-4. Purchase when available
-5. Record buy price in portfolio
-6. Record sale in profit tracker
-7. Analyze ROI by period
-```
-
-### 4. SEO Professional
-```
-1. Upload client domain list
-2. Monitor expiration dates
-3. Set up renewal reminders
-4. Track registrar information
-5. Filter by days until expiration
-```
-
-## ⚙️ Configuration
-
-### LLM Configuration (Settings Page)
-
-**Local LLM (Ollama) - FREE & RECOMMENDED:**
-```
-Provider: Local (Ollama)
-Model: qwen2.5:3b (recommended)
-Endpoint: http://localhost:11434/api/generate
-```
-
-**OpenAI:**
-```
-Provider: OpenAI
-API Key: sk-...
-Model: gpt-3.5-turbo
-```
-
-**Claude (Anthropic):**
-```
-Provider: Claude
-API Key: sk-ant-...
-Model: claude-3-haiku-20240307
-```
-
-**Perplexity:**
-```
-Provider: Perplexity
-API Key: pplx-...
-Model: sonar (or sonar-pro for advanced features)
-```
-
-> **Note**: Perplexity API uses simplified model names in 2026:
-> - `sonar` - Fast search-grounded responses (default)
-> - `sonar-pro` - Deeper retrieval with more sources
-> - `sonar-reasoning` - Multi-step reasoning with search
-> - Old model names like `llama-3.1-sonar-small-128k-online` are deprecated
-
-**Grok (xAI):**
-```
-Provider: Grok
-API Key: xai-...
-Model: grok-beta
-```
-
-### GeoNames Configuration
-
-Update `GEONAMES_USERNAME` in `server.js`:
-```javascript
-const GEONAMES_USERNAME = 'your_username';
-```
-
-Get free username at: http://www.geonames.org/login
-
-### Custom TLDs
-
-In the AI Generator page:
-1. Scroll to "Add custom TLD extension"
-2. Enter TLD (e.g., `.madrid`, `.realty`, `.global`)
-3. Click "Add TLD"
-4. TLD will be included in generation
-
-## 🚢 Deployment
-
-### Heroku
-```bash
-heroku create domain-hunter-pro
-git push heroku main
-```
-
-### Vercel
-```bash
-vercel --prod
-```
-
-### Docker
-```dockerfile
-FROM node:16-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm install --production
-COPY . .
-EXPOSE 3000
-CMD ["node", "server.js"]
-```
-
-```bash
-docker build -t domain-hunter .
-docker run -p 3000:3000 -v $(pwd)/data:/app/data domain-hunter
-```
-
-## 🔐 Security Best Practices
-
-1. **Rate Limiting** - Implement for production
-2. **API Authentication** - Add JWT tokens
-3. **File Upload Validation** - Strict file type checking
-4. **Input Sanitization** - Already includes basic validation
-5. **HTTPS** - Always use SSL in production
-6. **Environment Variables** - Store API keys securely
-
-## 📊 Performance Tips
-
-1. **Cache Management**: 24-hour auto-cache for domain checks
-2. **Bulk Operations**: Process 50+ domains efficiently
-3. **File Upload Limits**: Configure max file size in multer
-4. **Database Optimization**: Consider MongoDB for 10k+ domains
-5. **CDN Integration**: Serve static files faster
-6. **LLM Timeout**: Configured to 60s for large generations
-
-## 🐛 Troubleshooting
-
-### "Cannot upload file"
-```bash
-# Create uploads directory
-mkdir uploads
-chmod 755 uploads
-```
-
-### "AI generator not working"
-```bash
-# Check if Ollama is running
-curl http://localhost:11434/api/generate
-
-# Pull the model
-ollama pull qwen2.5:3b
-
-# Check server logs
-npm start
-```
-
-### "GeoNames API error"
-- Verify username is correct
-- Check daily API limit (free tier: 20,000 requests/day)
-- Ensure internet connection
-
-### "Perplexity API: Invalid model error"
-- Use current model names: `sonar`, `sonar-pro`, `sonar-reasoning`
-- Old model names (e.g., `llama-3.1-sonar-small-128k-online`) are no longer supported
-- Check [Perplexity API documentation](https://docs.perplexity.ai/docs/getting-started/models) for latest models
-- Verify API key is valid and has credits
-
-### "OpenAI/Claude API failed"
-- Verify API key is correct
-- Check API balance/credits
-- Ensure model name is valid for your account tier
-
-## 🚀 Future Enhancements
-
-### Completed Features ✅
-- ✅ Multi-user support with authentication (Portfolio & Sales tracking)
-- ✅ Price history tracking (Sales history with dates)
-- ✅ Historical data tracking (Cache with timestamps)
-
-### Planned Features
-- [ ] Email alerts for expiring domains
-- [ ] Scheduled automated checking (cron jobs)
-- [ ] Domain auction monitoring (NameJet, GoDaddy Auctions)
-- [ ] Competitor analysis (track competitor domains)
-- [ ] Chrome extension (quick domain check)
-- [ ] Mobile app (React Native)
-- [ ] Backlink analysis (Ahrefs/Moz integration)
-- [ ] SEO metrics integration (DA, PA, traffic estimates)
-- [ ] Domain appraisal with ML (price prediction)
-- [ ] Bulk WHOIS enrichment (batch processing)
-- [ ] Export to CSV/Excel
-- [ ] API rate limiting and quotas
-- [ ] Webhook notifications
-- [ ] Integration with domain registrars (auto-purchase)
-
-## 🤝 Contributing
-
-Contributions welcome!
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open Pull Request
-
-## 📄 License
-
-MIT License - See LICENSE file
-
-## 👨‍💻 Author
-
-**xcybermanx**
-- GitHub: [@xcybermanx](https://github.com/xcybermanx)
-- Repository: [domain-hunter-pro-enhanced](https://github.com/xcybermanx/domain-hunter-pro-enhanced)
-
-## 🙏 Acknowledgments
-
-- Express.js for backend framework
-- Multer for file uploads
-- Font Awesome for beautiful icons
-- Node.js DNS module
-- GeoNames for location data
-- Ollama for local LLM support
-- Perplexity AI for search-grounded generation
-- Open source community
-
-## 💬 Support
-
-For issues or questions:
-- Open GitHub issue
-- Check documentation
-- Review existing issues
+# 🌐 Domain Hunter Pro Enhanced v3.0
+
+> **AI-Powered Domain Research Tool with Multi-User Authentication, Automated Scheduling, Webhook Notifications & SEO Analytics**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org)
+[![Express](https://img.shields.io/badge/Express-4.x-black.svg)](https://expressjs.com)
+
+## 🚀 What's New in v3.0
+
+### 🔐 Multi-User Authentication
+- **User Registration & Login** - Secure JWT-based authentication
+- **Password Hashing** - bcrypt encryption for user passwords
+- **User-Specific Data** - Each user has their own portfolio and sales tracking
+- **Session Management** - 7-day JWT tokens with httpOnly cookies
+
+### 📅 Automated Scheduler
+- **Cron-Based Scheduling** - Set up automatic domain checks (daily, weekly, etc.)
+- **Flexible Timing** - Use cron expressions like `0 9 * * *` (daily at 9 AM)
+- **Batch Monitoring** - Check multiple domains in one scheduled job
+- **Background Processing** - Jobs run in the background without user interaction
+
+### 🔔 Webhook Notifications
+- **Real-Time Alerts** - Get notified when domains become available or are expiring
+- **Custom Endpoints** - Configure webhooks to Slack, Discord, or custom URLs
+- **Event Types**:
+  - `domain.available` - Domain becomes available
+  - `domain.expiring` - Domain expiring soon (≤7 days)
+  - `domain.registered` - New domain registered
+- **Test Webhooks** - Test your webhook configuration before going live
+
+### 📊 SEO Analytics (NEW!)
+- **Domain Authority (DA)** - Check Moz Domain Authority
+- **Page Authority (PA)** - Analyze page-level authority
+- **Backlink Analysis** - View backlink count and referring domains
+- **Competitor Analysis** - Compare multiple domains side-by-side
+- **API Integration** - Supports Moz and Ahrefs APIs
+
+### 🎯 AI Generator Updates
+- **Removed Geo-Domains** - Streamlined to focus on business domains
+- **Two Generation Types**:
+  - **Business Names** - Brandable keyword combinations (e.g., `madridpro.io`)
+  - **Mixed** - Combination of creative and industry-focused names
+- **Enhanced Keyword Focus** - Smarter keyword-based domain generation
 
 ---
 
-**⭐ Star this repository if you find it helpful!**
+## ✨ Core Features
 
-**Made with ❤️ and 🤖 AI for domain hunters worldwide**
+### 🤖 AI-Powered Domain Generator
+- **5 LLM Providers Supported**:
+  - 🏠 **Local (Ollama)** - FREE & PRIVATE (Qwen2.5, Phi3, Mistral, LLaMA 2)
+  - 🤖 **OpenAI (GPT)** - GPT-3.5, GPT-4
+  - 🧠 **Claude (Anthropic)** - Claude 3 Haiku, Sonnet
+  - ⚡ **Perplexity API** - Sonar, Sonar Pro
+  - 🚀 **Grok (xAI)** - Grok Beta
+- **Smart Fallback** - Uses keyword-based generator if LLM fails
+- **Customizable Length** - Set min/max domain name length
+- **TLD Selection** - Choose from 12+ popular extensions (.com, .io, .ai, etc.)
+- **Numbers & Hyphens** - Toggle numeric and hyphenated domains
+
+### 🔍 Domain Scanner
+- **Bulk Checking** - Check up to 100 domains at once
+- **File Upload** - Import domains from .txt or .csv files
+- **Multi-Method Verification**:
+  - RDAP (Registry Data Access Protocol) - Fast & official
+  - WHOIS API - Fallback for unsupported TLDs
+  - DNS Lookup - Basic availability check
+- **Detailed Results**:
+  - ✅ Availability status
+  - 📅 Expiration date
+  - 🏢 Registrar information
+  - ⏰ Days until expiration
+  - 🔍 Verification method used
+
+### 👁️ Domain Monitoring
+- **Automatic Tracking** - All scanned domains automatically saved
+- **Advanced Filters** - Search by keyword, availability, or registrar
+- **Batch Actions** - Remove all or individual domains
+- **Expiration Alerts** - See domains expiring in 7, 14, 30, 60, or 90 days
+- **Real-Time Updates** - Auto-refresh every 30 seconds
+
+### 💼 Portfolio Management (User-Specific)
+- **Domain Inventory** - Track all your owned domains
+- **Purchase Records** - Log buy price, registrar, and notes
+- **Investment Tracking** - See total portfolio value
+- **Export Ready** - View all domains in organized tables
+
+### 💰 Profit Tracker (User-Specific)
+- **Sales Recording** - Log domain sales with buy/sell prices
+- **Automatic Calculations**:
+  - 💵 Total Profit
+  - 📈 Average Profit per Sale
+  - 📊 ROI (Return on Investment)
+  - 💸 Total Revenue
+- **Time-Based Analytics** - Filter by week, month, or year
+- **Historical Records** - View complete sales history
+
+### ⚙️ Configuration
+- **LLM Settings** - Configure AI providers and API keys
+- **SEO API Keys** - Add Moz and Ahrefs credentials
+- **Model Selection** - Choose specific models for each provider
+- **Connection Testing** - Test LLM/SEO API connections before saving
+
+---
+
+## 🛠️ Installation
+
+### Prerequisites
+- **Node.js 18+** ([Download](https://nodejs.org))
+- **npm** (comes with Node.js)
+- **(Optional) Ollama** for local LLM ([Download](https://ollama.ai))
+
+### Quick Start
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/xcybermanx/domain-hunter-pro-enhanced.git
+cd domain-hunter-pro-enhanced
+
+# 2. Install dependencies
+npm install
+
+# 3. Start the server
+node server.js
+
+# 4. Open your browser
+# Navigate to: http://localhost:3000
+```
+
+### Environment Variables (Optional)
+
+```bash
+# Create a .env file
+PORT=3000
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+```
+
+---
+
+## 📖 Usage Guide
+
+### 1️⃣ **Register/Login**
+- First time? Click **Register** and create an account
+- Already have an account? Click **Login**
+- Your data is isolated per user (portfolio, sales, etc.)
+
+### 2️⃣ **Configure LLM (Optional)**
+Go to **Settings** → **LLM Configuration**
+
+#### For Local LLM (Recommended - FREE):
+```bash
+# Install Ollama
+curl https://ollama.ai/install.sh | sh
+
+# Pull a model (choose one):
+ollama pull qwen2.5:3b      # ⭐ Recommended - Fast & Smart
+ollama pull phi3:mini        # ⚡ Ultra Fast
+ollama pull mistral:7b       # 🧠 High Quality
+```
+
+Then in Settings:
+- ✅ Enable Local LLM
+- Select Model: `qwen2.5:3b`
+- Endpoint: `http://localhost:11434/api/generate`
+- Click **Test Connection**
+
+#### For Cloud LLMs:
+- **OpenAI**: Get API key from [platform.openai.com](https://platform.openai.com/api-keys)
+- **Claude**: Get API key from [console.anthropic.com](https://console.anthropic.com/)
+- **Perplexity**: Get API key from [perplexity.ai](https://www.perplexity.ai/)
+- **Grok**: Get API key from [x.ai](https://x.ai/)
+
+### 3️⃣ **Generate Domains**
+1. Go to **AI Generator**
+2. Choose generation type:
+   - **Business Names** - Brandable combinations
+   - **Mixed** - Creative + industry-focused
+3. Enter keywords (e.g., `tech, digital, agency`)
+4. Select TLDs (.com, .io, .ai, etc.)
+5. ✅ Check "Use AI/LLM" for smarter results
+6. Click **Generate Domains**
+
+### 4️⃣ **Scan Domains**
+- After generation, you'll auto-switch to **Scanner**
+- Or manually enter domains (one per line)
+- Or upload a .txt/.csv file
+- Click **Check Domains**
+- View results: availability, expiration, registrar
+
+### 5️⃣ **Monitor Domains**
+- Click "Monitor" on any scanned domain
+- View all in **Monitoring** page
+- Filter by keyword, availability, or registrar
+- Set up automated checks in **Scheduler**
+
+### 6️⃣ **Set Up Scheduler**
+Go to **Scheduler** page:
+1. Create a schedule:
+   - Name: "Daily Check"
+   - Cron: `0 9 * * *` (daily at 9 AM)
+   - Domains: Enter domains to monitor
+2. Click **Create Schedule**
+3. Toggle active/paused as needed
+
+**Common Cron Patterns:**
+- `0 9 * * *` - Daily at 9 AM
+- `0 */6 * * *` - Every 6 hours
+- `0 0 * * 1` - Every Monday at midnight
+- `0 12 * * 1-5` - Weekdays at noon
+
+### 7️⃣ **Configure Webhooks**
+Go to **Webhooks** page:
+1. Create a webhook:
+   - Name: "Slack Notifications"
+   - URL: Your Slack/Discord webhook URL
+   - Events: Select trigger events
+2. Click **Test Webhook** to verify
+3. Active webhooks will send notifications automatically
+
+**Slack Webhook Setup:**
+1. Go to Slack → Settings → Incoming Webhooks
+2. Create new webhook
+3. Copy URL (e.g., `https://hooks.slack.com/services/...`)
+4. Paste in Domain Hunter Pro
+
+### 8️⃣ **SEO Analytics**
+Go to **SEO Analytics** page:
+
+**Single Domain:**
+1. Enter domain name
+2. Click **Analyze**
+3. View DA, PA, backlinks, referring domains
+
+**Competitor Analysis:**
+1. Enter multiple domains (one per line)
+2. Click **Analyze Competitors**
+3. View comparison table
+
+**Note:** Requires Moz or Ahrefs API keys in Settings
+
+### 9️⃣ **Track Portfolio**
+1. Go to **Portfolio** page
+2. Add domains you own
+3. Enter purchase price, registrar, notes
+4. View total investment on Dashboard
+
+### 🔟 **Log Sales**
+1. Go to **Profit Tracker** page
+2. Add a sale:
+   - Domain name
+   - Buy price
+   - Sell price
+   - Dates
+3. View automatic profit, ROI calculations
+4. Filter analytics by week/month/year
+
+---
+
+## 🏗️ Architecture
+
+### Backend (`server.js`)
+- **Express.js** - Web server
+- **JWT** - Authentication tokens
+- **bcrypt** - Password hashing
+- **node-cron** - Scheduled jobs
+- **axios** - HTTP requests (RDAP/WHOIS/LLM APIs)
+- **multer** - File uploads
+- **JSON files** - Simple database (users, domains, schedules, webhooks)
+
+### Frontend (`public/`)
+- **Vanilla JS** - No frameworks, fast & lightweight
+- **CSS3** - Modern gradients, animations, responsive design
+- **FontAwesome** - Icons
+- **Google Fonts** - Inter typeface
+
+### Data Storage
+All data stored in `data/` folder:
+- `users.json` - User accounts (hashed passwords)
+- `domains.json` - Scanned domains cache
+- `schedules.json` - Automated check schedules
+- `webhooks.json` - Webhook configurations
+- `config.json` - LLM and SEO API settings
+
+---
+
+## 🔒 Security Features
+
+- ✅ **JWT Authentication** - Secure token-based auth
+- ✅ **Password Hashing** - bcrypt with salt rounds
+- ✅ **httpOnly Cookies** - Prevents XSS attacks
+- ✅ **Rate Limiting** - Prevents brute force attacks:
+  - Auth endpoints: 5 requests / 15 minutes
+  - API endpoints: 60 requests / minute
+- ✅ **User Isolation** - Each user's data is separate
+- ✅ **Input Validation** - Server-side validation on all inputs
+
+---
+
+## 📊 API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - Create new account
+- `POST /api/auth/login` - Login
+- `POST /api/auth/logout` - Logout
+- `GET /api/auth/me` - Get current user
+
+### Domain Operations
+- `POST /api/check-domain` - Check single domain
+- `POST /api/check-domains` - Check multiple domains
+- `POST /api/generate-domains` - AI domain generation
+- `POST /api/upload-domains` - Upload domain list file
+
+### Monitoring
+- `GET /api/monitoring/filter` - Get monitored domains (with filters)
+- `POST /api/monitoring` - Add domain to monitoring
+- `DELETE /api/monitoring/:domain` - Remove specific domain
+- `DELETE /api/monitoring` - Remove all domains
+
+### Expiring Domains
+- `GET /api/expiring?maxDays=30` - Get expiring domains
+
+### Scheduler
+- `GET /api/schedules` - List all schedules
+- `POST /api/schedules` - Create schedule
+- `PATCH /api/schedules/:id/toggle` - Toggle active/paused
+- `DELETE /api/schedules/:id` - Delete schedule
+
+### Webhooks
+- `GET /api/webhooks` - List all webhooks
+- `POST /api/webhooks` - Create webhook
+- `POST /api/webhooks/:id/test` - Test webhook
+- `DELETE /api/webhooks/:id` - Delete webhook
+
+### SEO Analytics
+- `GET /api/seo/metrics/:domain` - Get SEO metrics for domain
+- `POST /api/seo/competitor-analysis` - Analyze multiple domains
+
+### Portfolio (User-Specific)
+- `GET /api/portfolio` - Get user's portfolio
+- `POST /api/portfolio` - Add domain to portfolio
+- `DELETE /api/portfolio/:id` - Remove from portfolio
+
+### Sales/Profit (User-Specific)
+- `GET /api/sales` - Get user's sales
+- `POST /api/sales` - Add sale
+- `GET /api/analytics/profit?period=month` - Get profit analytics
+
+### Configuration
+- `GET /api/config` - Get current config
+- `POST /api/config` - Save config
+- `POST /api/test-llm-connection` - Test LLM connection
+
+### Statistics
+- `GET /api/stats` - Dashboard statistics
+
+---
+
+## 🎨 Screenshots
+
+### Dashboard
+![Dashboard](https://via.placeholder.com/800x450/6366f1/ffffff?text=Dashboard+-+Stats+%26+Analytics)
+
+### AI Generator
+![Generator](https://via.placeholder.com/800x450/10b981/ffffff?text=AI+Domain+Generator)
+
+### Scanner Results
+![Scanner](https://via.placeholder.com/800x450/8b5cf6/ffffff?text=Domain+Scanner+Results)
+
+### Scheduler
+![Scheduler](https://via.placeholder.com/800x450/f59e0b/ffffff?text=Automated+Scheduler)
+
+---
+
+## 🧪 Testing
+
+### Test LLM Connection
+```bash
+# Using curl
+curl -X POST http://localhost:3000/api/test-llm-connection \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "local",
+    "endpoint": "http://localhost:11434/api/generate",
+    "model": "qwen2.5:3b"
+  }'
+```
+
+### Test Webhook
+```bash
+curl -X POST http://localhost:3000/api/webhooks/YOUR_WEBHOOK_ID/test \
+  -H "Cookie: token=YOUR_JWT_TOKEN"
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
 
 ## 📝 Changelog
 
-### v3.0.1 (Current)
-- 🔧 Fixed Perplexity API model name (now uses `sonar` instead of deprecated model)
-- 📝 Updated documentation with current Perplexity model names
-- ✅ Marked completed future enhancements
-- 🐛 Fixed model validation issues
+### v3.0.0 (2026-02-18)
+- ✅ **NEW:** Multi-user authentication system
+- ✅ **NEW:** Automated scheduler with cron jobs
+- ✅ **NEW:** Webhook notification system
+- ✅ **NEW:** SEO analytics (DA, PA, backlinks)
+- ✅ **NEW:** Competitor analysis
+- ✅ **UPDATED:** AI Generator (removed Geo, kept Business + Mixed)
+- ✅ **UPDATED:** User-specific portfolio and sales tracking
+- ✅ **IMPROVED:** Security with rate limiting
+- ✅ **IMPROVED:** Dashboard with profit analytics
 
-### v3.0.0
-- ✨ Added multi-LLM support (Local, OpenAI, Claude, Perplexity, Grok)
-- 🌍 Added GeoNames integration with 250+ countries
-- 🗺️ Added location-based domain generation
-- 👥 Added population filtering for cities
-- 🔧 Fixed TLD selection to only use selected TLDs
-- 🗑️ Added "Remove All" button for monitoring
-- 🖱️ Made dashboard expiring domains clickable
-- 📊 Enhanced profit tracking with ROI analytics
-- 💰 Added sales history management
+### v2.0.0 (Previous)
+- AI-powered domain generation
+- Multi-LLM support (5 providers)
+- Portfolio management
+- Profit tracking
+- RDAP/WHOIS integration
 
-### v2.0.0
-- ✨ Added AI domain generator (geo + realistic)
-- 📤 Added bulk file upload support
-- 🔍 Added advanced filtering system
-- 💼 Enhanced portfolio with registrar tracking
-- ⏰ Added expiration day filters
-- 📊 Added comprehensive statistics
+---
 
-### v1.0.0
-- ✅ Initial release
-- ✅ Basic domain checking
-- ✅ Simple watchlist
-- ✅ Portfolio management
+## 🐛 Known Issues
+
+- SEO metrics show placeholder data (requires actual Moz/Ahrefs API integration)
+- Large domain lists (>100) may timeout
+- Some TLDs not supported by RDAP (fallback to WHOIS)
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details
+
+---
+
+## 👤 Author
+
+**xcybermanx**
+- GitHub: [@xcybermanx](https://github.com/xcybermanx)
+- Email: jawad@live.fr
+
+---
+
+## 🙏 Acknowledgments
+
+- **Ollama** - Local LLM runtime
+- **OpenAI** - GPT models
+- **Anthropic** - Claude models
+- **Perplexity** - Sonar API
+- **xAI** - Grok API
+- **Moz** - Domain authority metrics
+- **Ahrefs** - Backlink data
+- **RDAP** - Domain registry data
+
+---
+
+## ⭐ Star History
+
+If you find this project useful, please consider giving it a star on GitHub!
+
+---
+
+## 📧 Support
+
+Need help? Have questions?
+- 📝 [Open an Issue](https://github.com/xcybermanx/domain-hunter-pro-enhanced/issues)
+- 💬 [Discussions](https://github.com/xcybermanx/domain-hunter-pro-enhanced/discussions)
+
+---
+
+<div align="center">
+
+**🚀 Happy Domain Hunting! 🌐**
+
+Made with ❤️ by [xcybermanx](https://github.com/xcybermanx)
+
+</div>
