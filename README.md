@@ -484,8 +484,14 @@ Model: claude-3-haiku-20240307
 ```
 Provider: Perplexity
 API Key: pplx-...
-Model: llama-3.1-sonar-small-128k-online
+Model: sonar (or sonar-pro for advanced features)
 ```
+
+> **Note**: Perplexity API uses simplified model names in 2026:
+> - `sonar` - Fast search-grounded responses (default)
+> - `sonar-pro` - Deeper retrieval with more sources
+> - `sonar-reasoning` - Multi-step reasoning with search
+> - Old model names like `llama-3.1-sonar-small-128k-online` are deprecated
 
 **Grok (xAI):**
 ```
@@ -584,26 +590,39 @@ npm start
 - Check daily API limit (free tier: 20,000 requests/day)
 - Ensure internet connection
 
-### "Perplexity/OpenAI API failed"
+### "Perplexity API: Invalid model error"
+- Use current model names: `sonar`, `sonar-pro`, `sonar-reasoning`
+- Old model names (e.g., `llama-3.1-sonar-small-128k-online`) are no longer supported
+- Check [Perplexity API documentation](https://docs.perplexity.ai/docs/getting-started/models) for latest models
+- Verify API key is valid and has credits
+
+### "OpenAI/Claude API failed"
 - Verify API key is correct
 - Check API balance/credits
-- Remove unsupported parameters (like `temperature` for Perplexity)
+- Ensure model name is valid for your account tier
 
 ## 🚀 Future Enhancements
 
+### Completed Features ✅
+- ✅ Multi-user support with authentication (Portfolio & Sales tracking)
+- ✅ Price history tracking (Sales history with dates)
+- ✅ Historical data tracking (Cache with timestamps)
+
+### Planned Features
 - [ ] Email alerts for expiring domains
-- [ ] Scheduled automated checking
-- [ ] Domain auction monitoring
-- [ ] Price history tracking
-- [ ] Competitor analysis
-- [ ] Chrome extension
+- [ ] Scheduled automated checking (cron jobs)
+- [ ] Domain auction monitoring (NameJet, GoDaddy Auctions)
+- [ ] Competitor analysis (track competitor domains)
+- [ ] Chrome extension (quick domain check)
 - [ ] Mobile app (React Native)
-- [ ] Multi-user support with authentication
-- [ ] Backlink analysis
-- [ ] SEO metrics integration
-- [ ] Domain appraisal with ML
-- [ ] Bulk WHOIS enrichment
-- [ ] Historical data tracking
+- [ ] Backlink analysis (Ahrefs/Moz integration)
+- [ ] SEO metrics integration (DA, PA, traffic estimates)
+- [ ] Domain appraisal with ML (price prediction)
+- [ ] Bulk WHOIS enrichment (batch processing)
+- [ ] Export to CSV/Excel
+- [ ] API rate limiting and quotas
+- [ ] Webhook notifications
+- [ ] Integration with domain registrars (auto-purchase)
 
 ## 🤝 Contributing
 
@@ -633,6 +652,7 @@ MIT License - See LICENSE file
 - Node.js DNS module
 - GeoNames for location data
 - Ollama for local LLM support
+- Perplexity AI for search-grounded generation
 - Open source community
 
 ## 💬 Support
@@ -650,13 +670,18 @@ For issues or questions:
 
 ## 📝 Changelog
 
-### v3.0.0 (Latest)
+### v3.0.1 (Current)
+- 🔧 Fixed Perplexity API model name (now uses `sonar` instead of deprecated model)
+- 📝 Updated documentation with current Perplexity model names
+- ✅ Marked completed future enhancements
+- 🐛 Fixed model validation issues
+
+### v3.0.0
 - ✨ Added multi-LLM support (Local, OpenAI, Claude, Perplexity, Grok)
 - 🌍 Added GeoNames integration with 250+ countries
 - 🗺️ Added location-based domain generation
 - 👥 Added population filtering for cities
 - 🔧 Fixed TLD selection to only use selected TLDs
-- ⚙️ Fixed Perplexity API connection
 - 🗑️ Added "Remove All" button for monitoring
 - 🖱️ Made dashboard expiring domains clickable
 - 📊 Enhanced profit tracking with ROI analytics
