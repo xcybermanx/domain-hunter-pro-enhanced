@@ -3,6 +3,7 @@ const API = '/api';
 let selectedGenType = 'geo';
 let selectedGeoLocation = null;
 let geoSearchTimeout = null;
+let currentPopFilter = 0;
 
 // ── Navigation ──────────────────────────────────────────────────
 function navigate(page) {
@@ -29,6 +30,25 @@ function selectGenType(type) {
 }
 
 // ── GeoNames Location Search ────────────────────────────────────
+let currentPopFilter = 0;
+
+function setPopulationFilter(minPop) {
+    currentPopFilter = minPop;
+    document.querySelectorAll('#populationFilter button').forEach(btn => {
+        btn.style.background = 'rgba(229,231,235,0.5)';
+        btn.style.color = '#6b7280';
+        btn.style.border = '1px solid #e5e7eb';
+    });
+    const activeBtn = document.querySelector(`#populationFilter button[data-pop="${minPop}"]`);
+    if (activeBtn) {
+        activeBtn.style.background = 'rgba(16,185,129,0.15)';
+        activeBtn.style.color = '#059669';
+        activeBtn.style.border = '1px solid #10b981';
+    }
+    const query = document.getElementById('geoSearchInput').value.trim();
+    if (query.length >= 2) handleGeoSearch(query);
+}
+
 function handleGeoSearch(query) {
     clearTimeout(geoSearchTimeout);
     if (!query || query.trim().length < 2) {
@@ -43,10 +63,14 @@ function handleGeoSearch(query) {
 
 async function searchGeoNames(query, type) {
     try {
-        const res = await fetch(`${API}/geonames/search?q=${encodeURIComponent(query)}&type=${type}`);
+        let url = `${API}/geonames/search?q=${encodeURIComponent(query)}&type=${type}`;
+        if (type === 'cities' && currentPopFilter > 0) {
+            url += `&minPopulation=${currentPopFilter}`;
+        }
+        const res = await fetch(url);
         const data = await res.json();
         if (data.results && data.results.length > 0) {
-            renderGeoResults(data.results);
+            renderGeoResults(data.results, type);
         } else {
             const dropdown = document.getElementById('geoSearchDropdown');
             dropdown.innerHTML = '<div style="padding:15px;text-align:center;color:#9ca3af;">No results found</div>';
@@ -57,21 +81,91 @@ async function searchGeoNames(query, type) {
     }
 }
 
-function renderGeoResults(results) {
+function renderGeoResults(results, type) {
     const dropdown = document.getElementById('geoSearchDropdown');
     dropdown.innerHTML = results.map(r => {
         const safeName = r.name.replace(/'/g, "\\'");
         const safeCountry = (r.country || '').replace(/'/g, "\\'");
+        const safeCode = (r.countryCode || '').replace(/'/g, "\\'");
         const popText = r.population > 0 ? `👥 ${(r.population / 1000).toFixed(0)}k` : '';
-        return `<div onclick="selectGeoLocation('${safeName}', '${safeCountry}')" style="padding:12px 15px;cursor:pointer;border-bottom:1px solid #f3f4f6;transition:all 0.2s;display:flex;justify-content:space-between;align-items:center;">
-            <div>
-                <strong style="color:#1e293b;">${r.name}</strong>
-                <span style="color:#6b7280;font-size:13px;margin-left:8px;">${r.country ? `🌍 ${r.country}` : ''}</span>
-            </div>
-            <span style="font-size:12px;color:#9ca3af;background:rgba(0,0,0,0.05);padding:3px 8px;border-radius:6px;">${popText}</span>
-        </div>`;
+        
+        if (type === 'countries') {
+            return `<div onclick="loadCountryCities('${safeCode}', '${safeName}')" style="padding:12px 15px;cursor:pointer;border-bottom:1px solid #f3f4f6;transition:all 0.2s;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='rgba(16,185,129,0.08)'" onmouseout="this.style.background='transparent'">
+                <div>
+                    <strong style="color:#1e293b;">${r.name}</strong>
+                    <span style="color:#6b7280;font-size:13px;margin-left:8px;">🌍 ${r.countryCode}</span>
+                </div>
+                <i class="fas fa-chevron-right" style="color:#9ca3af;font-size:12px;"></i>
+            </div>`;
+        } else {
+            return `<div onclick="selectGeoLocation('${safeName}', '${safeCountry}')" style="padding:12px 15px;cursor:pointer;border-bottom:1px solid #f3f4f6;transition:all 0.2s;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='rgba(16,185,129,0.08)'" onmouseout="this.style.background='transparent'">
+                <div>
+                    <strong style="color:#1e293b;">${r.name}</strong>
+                    <span style="color:#6b7280;font-size:13px;margin-left:8px;">${r.country ? `🌍 ${r.country}` : ''}</span>
+                </div>
+                <span style="font-size:12px;color:#9ca3af;background:rgba(0,0,0,0.05);padding:3px 8px;border-radius:6px;">${popText}</span>
+            </div>`;
+        }
     }).join('');
     dropdown.style.display = 'block';
+}
+
+async function loadAllCountries() {
+    try {
+        const res = await fetch(`${API}/geonames/countries`);
+        const data = await res.json();
+        if (data.results && data.results.length > 0) {
+            const dropdown = document.getElementById('geoSearchDropdown');
+            dropdown.innerHTML = '<div style="padding:10px 15px;background:rgba(16,185,129,0.1);border-bottom:2px solid #10b981;font-weight:700;color:#059669;">🌍 All Countries (click to see cities)</div>' + 
+                data.results.map(r => {
+                    const safeName = r.name.replace(/'/g, "\\'");
+                    const safeCode = r.countryCode.replace(/'/g, "\\'");
+                    return `<div onclick="loadCountryCities('${safeCode}', '${safeName}')" style="padding:12px 15px;cursor:pointer;border-bottom:1px solid #f3f4f6;transition:all 0.2s;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='rgba(16,185,129,0.08)'" onmouseout="this.style.background='transparent'">
+                        <strong style="color:#1e293b;">${r.name}</strong>
+                        <span style="font-size:12px;color:#9ca3af;background:rgba(0,0,0,0.05);padding:3px 8px;border-radius:6px;">${r.countryCode}</span>
+                        <i class="fas fa-chevron-right" style="color:#9ca3af;font-size:12px;margin-left:8px;"></i>
+                    </div>`;
+                }).join('');
+            dropdown.style.display = 'block';
+        }
+    } catch (err) {
+        console.error('Load countries error:', err);
+    }
+}
+
+async function loadCountryCities(countryCode, countryName) {
+    try {
+        const res = await fetch(`${API}/geonames/country/${countryCode}/cities`);
+        const data = await res.json();
+        if (data.results && data.results.length > 0) {
+            const dropdown = document.getElementById('geoSearchDropdown');
+            dropdown.innerHTML = `<div style="padding:10px 15px;background:rgba(16,185,129,0.1);border-bottom:2px solid #10b981;display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                    <button onclick="loadAllCountries();event.stopPropagation();" style="background:none;border:none;cursor:pointer;color:#059669;font-size:14px;margin-right:10px;">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <strong style="color:#059669;">🏙️ Major Cities in ${countryName}</strong>
+                </div>
+            </div>` + 
+                data.results.map(r => {
+                    const safeName = r.name.replace(/'/g, "\\'");
+                    const safeCountry = countryName.replace(/'/g, "\\'");
+                    const popText = r.population > 0 ? `👥 ${(r.population / 1000).toFixed(0)}k` : '';
+                    return `<div onclick="selectGeoLocation('${safeName}', '${safeCountry}')" style="padding:12px 15px;cursor:pointer;border-bottom:1px solid #f3f4f6;transition:all 0.2s;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='rgba(16,185,129,0.08)'" onmouseout="this.style.background='transparent'">
+                        <strong style="color:#1e293b;">${r.name}</strong>
+                        <span style="font-size:12px;color:#9ca3af;background:rgba(0,0,0,0.05);padding:3px 8px;border-radius:6px;">${popText}</span>
+                    </div>`;
+                }).join('');
+            dropdown.style.display = 'block';
+        }
+    } catch (err) {
+        console.error('Load country cities error:', err);
+    }
+}
+
+function handleCountryMode() {
+    document.getElementById('geoSearchInput').value = '';
+    document.getElementById('geoSearchDropdown').style.display = 'none';
 }
 
 function selectGeoLocation(name, country) {
@@ -94,6 +188,8 @@ function clearSelectedLocation() {
 function clearGeoSearch() {
     document.getElementById('geoSearchInput').value = '';
     document.getElementById('geoSearchDropdown').style.display = 'none';
+    currentPopFilter = 0;
+    setPopulationFilter(0);
 }
 
 // ── Custom TLD manager ──────────────────────────────────────────
@@ -171,7 +267,7 @@ async function refreshStats() {
         document.getElementById('monitorBadge').textContent     = stats.totalMonitored    || 0;
         document.getElementById('expiringBadge').textContent    = stats.expiring30        || 0;
 
-        // Load top 3 next expiring
+        // Load top 3 next expiring - make them clickable
         const expRes = await fetch(`${API}/expiring?maxDays=365`);
         const expData = await expRes.json();
         const top3 = (expData.expiring || []).slice(0, 3);
@@ -183,7 +279,7 @@ async function refreshStats() {
                 const days = d.daysLeft !== null ? d.daysLeft : '?';
                 const expDate = d.expirationDate ? new Date(d.expirationDate).toLocaleDateString() : 'N/A';
                 const color = days <= 7 ? '#ef4444' : days <= 30 ? '#f59e0b' : '#10b981';
-                return `<div style="background:linear-gradient(135deg,rgba(255,255,255,0.95),rgba(255,255,255,0.9));backdrop-filter:blur(10px);padding:20px;border-radius:16px;box-shadow:0 5px 20px rgba(0,0,0,0.1);border-left:4px solid ${color};">
+                return `<div class="domain-card-clickable" onclick="document.querySelector('.menu-item[onclick*=\\"expiring\\"]').click()" style="background:linear-gradient(135deg,rgba(255,255,255,0.95),rgba(255,255,255,0.9));backdrop-filter:blur(10px);padding:20px;border-radius:16px;box-shadow:0 5px 20px rgba(0,0,0,0.1);border-left:4px solid ${color};">
                     <div style="font-size:14px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">📍 Domain</div>
                     <div style="font-size:18px;font-weight:800;color:#1e293b;margin-bottom:12px;word-break:break-all;">${d.domain}</div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -397,11 +493,30 @@ async function loadMonitoring() {
         document.getElementById('monitoringResults').innerHTML = '<div class="empty-state"><p>Failed to load</p></div>';
     }
 }
+
 function applyMonitorFilters() { loadMonitoring(); }
+
 function clearMonitorFilters() {
     ['monitorKeyword','monitorRegistrar'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('monitorAvailable').value = '';
     loadMonitoring();
+}
+
+async function removeAllMonitoring() {
+    if (!confirm('⚠️ Remove ALL monitored domains?\n\nThis will delete all domains from monitoring. This action cannot be undone.')) return;
+    try {
+        const res = await fetch(`${API}/monitoring/all`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`🗑️ Removed ${data.count} domain(s) from monitoring`, 'success');
+            loadMonitoring();
+            refreshStats();
+        } else {
+            showToast('❌ Could not remove all: ' + (data.error || 'Unknown error'), 'error');
+        }
+    } catch {
+        showToast('❌ Error removing all domains', 'error');
+    }
 }
 
 function displayMonitoring(monitoring) {
