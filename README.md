@@ -2,18 +2,27 @@
 
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.0-orange)](package.json)
+[![Version](https://img.shields.io/badge/version-3.0.0-orange)](package.json)
 [![AI Powered](https://img.shields.io/badge/AI-Powered-red)](README.md)
 
-A professional AI-powered domain research platform with intelligent domain generation, real-time monitoring, subdomain discovery, and advanced filtering.
+A professional AI-powered domain research platform with intelligent domain generation, real-time monitoring, GeoNames location integration, and advanced filtering.
 
-## 🌟 New Features (v2.0)
+## 🌟 New Features (v3.0)
 
-### 🤖 AI Domain Generator
+### 🤖 AI Domain Generator with LLM Support
+- **Multi-LLM Support**: Local (Ollama), OpenAI, Claude, Perplexity, Grok
 - **Geo-Domain Generation**: Intelligent city + country combinations
-- **Realistic Business Names**: AI-powered realistic domain suggestions
+- **GeoNames Integration**: Real location data for 250+ countries
 - **Custom Keywords**: Generate domains based on your keywords
 - **Bulk Generation**: Create 5-100 domains instantly
+- **Smart Fallback**: Works without LLM configuration
+
+### 🌍 GeoNames Location Integration
+- Browse all countries sorted by population
+- Search cities with population filtering (100k+, 500k+, 1M+)
+- Click country → view major cities
+- Select location → generate geo-targeted domains
+- Real-time location search with autocomplete
 
 ### 📤 Bulk File Upload
 - Upload CSV/TXT files with domain lists
@@ -21,40 +30,38 @@ A professional AI-powered domain research platform with intelligent domain gener
 - Support for multiple formats
 
 ### 🔍 Advanced Filtering
-- **Filter by expiration days**: 7, 30, 90, 180 days
+- **Filter by expiration days**: 7, 30, 90, 180 days or custom
 - **Keyword search**: Find domains containing specific words
 - **Registrar filter**: Filter by GoDaddy, Namecheap, etc.
 - **Availability filter**: Available or taken domains
-- **Premium filter**: Premium domains only
+- **Remove All**: Clear all monitored domains at once
 
-### 🌐 Subdomain Monitoring
-- Automatic subdomain discovery
-- Track all found subdomains
-- Filter by parent domain
-- Monitor last check dates
-
-### 💼 Enhanced Portfolio
+### 💼 Enhanced Portfolio & Profit Tracker
 - Registrar tracking
 - Custom notes per domain
 - Investment tracking
-- Purchase date logging
+- Sales history with ROI calculation
+- Profit analytics by period
 
 ## ✨ Core Features
 
 ### Backend (Node.js + Express)
 - ✅ Real DNS Resolution
+- ✅ RDAP/WHOIS Integration
 - ✅ JSON Database with auto-creation
 - ✅ Smart 24-hour caching
 - ✅ RESTful API architecture
 - ✅ Bulk operations support
 - ✅ File upload handling (multer)
+- ✅ GeoNames API integration
 
 ### Frontend (Modern Interactive UI)
-- ✅ 6 specialized tabs
+- ✅ 8 specialized tabs
 - ✅ Live statistics dashboard
 - ✅ Real-time updates
 - ✅ Responsive design
 - ✅ Professional animations
+- ✅ Clickable dashboard cards
 
 ## 🚀 Quick Start
 
@@ -77,14 +84,32 @@ npm start
 http://localhost:3000
 ```
 
+### Optional: Set Up Local LLM (Recommended)
+
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull recommended model
+ollama pull qwen2.5:3b
+
+# Start Ollama server
+ollama serve
+```
+
+Then go to **Settings** in the app and enable Local LLM.
+
 ## 📊 Dashboard Statistics
 
 - **Total Scans**: Number of domains checked
 - **Available Domains**: Domains ready to register
 - **Expiring (7d)**: Domains expiring within 7 days
 - **Premium Domains**: High-value domains detected
-- **Total Subdomains**: Discovered subdomains
-- **Total Investment**: Portfolio value
+- **Total Monitored**: Domains in monitoring
+- **Total Profit**: Revenue from sales
+- **Total Revenue**: Total sales value
+- **Total Invested**: Portfolio investment value
+- **ROI**: Return on investment percentage
 
 ## 🛠️ API Documentation
 
@@ -94,18 +119,46 @@ POST /api/generate-domains
 Content-Type: application/json
 
 {
-  "type": "geo",           // "geo", "realistic", "mixed"
-  "keywords": ["tech", "shop"],
-  "count": 20
+  "type": "geo",              // "geo", "business", "mixed"
+  "keywords": "loyer,invest", // comma-separated keywords
+  "count": 20,                // 5-100
+  "useLLM": true,             // use AI for generation
+  "tlds": [".com", ".fr"],   // selected TLDs
+  "minLength": 4,             // min domain name length
+  "maxLength": 30,            // max domain name length
+  "allowNumbers": true,
+  "allowHyphens": true,
+  "geoLocation": {            // optional location
+    "name": "Paris",
+    "country": "France"
+  }
 }
 ```
 
 **Response:**
 ```json
 {
-  "domains": ["newyorktech.com", "parisshop.io", ...],
-  "count": 20
+  "domains": ["loyerparis.com", "paris-loyer.fr", ...],
+  "count": 20,
+  "usedLLM": true
 }
+```
+
+### GeoNames API
+
+**Search Locations:**
+```http
+GET /api/geonames/search?q=Paris&type=cities
+```
+
+**Get All Countries:**
+```http
+GET /api/geonames/countries
+```
+
+**Get Cities by Country:**
+```http
+GET /api/geonames/cities/FR?limit=50
 ```
 
 ### Bulk File Upload
@@ -124,39 +177,54 @@ file: domains.txt
 }
 ```
 
-### Advanced Filtering
-```http
-GET /api/domains/filter?days=30&keyword=tech&registrar=godaddy&available=true&premium=false
-```
+### Domain Monitoring
 
-**Response:**
-```json
+**Add to Monitoring:**
+```http
+POST /api/monitoring
+Content-Type: application/json
+
 {
-  "domains": [...],
-  "count": 15
+  "domain": "example.com"
 }
 ```
 
-### Subdomain Discovery
+**Remove from Monitoring:**
 ```http
-GET /api/subdomains?domain=example.com&days=7
+DELETE /api/monitoring/example.com
+```
+
+**Remove All Monitored Domains:**
+```http
+DELETE /api/monitoring
+```
+
+**Filter Monitoring:**
+```http
+GET /api/monitoring/filter?keyword=tech&available=true&registrar=godaddy
+```
+
+### Expiring Domains
+```http
+GET /api/expiring?maxDays=30
 ```
 
 **Response:**
 ```json
 {
-  "subdomains": [
+  "expiring": [
     {
-      "subdomain": "www.example.com",
-      "exists": true,
-      "lastChecked": 1708176000000
+      "domain": "example.com",
+      "daysLeft": 15,
+      "expirationDate": "2026-03-05T00:00:00.000Z",
+      "registrar": "GoDaddy"
     }
   ],
   "count": 1
 }
 ```
 
-### Enhanced Portfolio
+### Portfolio Management
 ```http
 POST /api/portfolio
 Content-Type: application/json
@@ -169,24 +237,47 @@ Content-Type: application/json
 }
 ```
 
+### Sales & Profit Tracking
+```http
+POST /api/sales
+Content-Type: application/json
+
+{
+  "domain": "example.com",
+  "buyPrice": 10,
+  "sellPrice": 100,
+  "buyDate": "2025-01-01",
+  "sellDate": "2026-02-18",
+  "notes": "Quick flip"
+}
+```
+
+**Get Profit Analytics:**
+```http
+GET /api/analytics/profit?period=month  // week, month, year
+```
+
 ## 🎨 Features Guide
 
 ### 1. AI Domain Generator
 
-**Geo-Domains:**
-- Combines cities with keywords
-- Country + business terms
-- Location-based domains
+**Geo-Domains with GeoNames:**
+1. Enter keyword: `loyer` (rent)
+2. Click "Browse All Countries"
+3. Select "France" → Choose "Paris"
+4. Select TLDs: `.com`, `.fr`
+5. Click "Generate Domains"
 
-Examples:
-- `newyorktech.com`
-- `parisshop.io`
-- `tokyohub.app`
+**Results:**
+- `loyerparis.com`
+- `paris-loyer.fr`
+- `parloyer.io`
+- `locationparis.com`
 
-**Realistic Domains:**
-- Business-ready names
+**Business Domains:**
 - Professional combinations
 - Market-tested patterns
+- Brandable names
 
 Examples:
 - `getmarketpro.com`
@@ -195,68 +286,47 @@ Examples:
 
 ### 2. Bulk Domain Scanner
 
-1. Enter domains (one per line)
-2. Enable "Discover Subdomains" for deep scan
-3. Click "Check Domains"
-4. View results with:
+1. Enter domains (one per line) or upload file
+2. Click "Check Domains"
+3. View results with:
    - Availability status
    - Registrar information
    - Expiration dates
    - Days left
-   - Premium indicators
+   - RDAP/WHOIS method
 
-### 3. Bulk File Upload
+### 3. Domain Monitoring
 
-**Supported Formats:**
-- Plain text (.txt)
-- CSV files (.csv)
-- One domain per line
-- Comma, semicolon, or tab separated
+**Features:**
+- Automatically stores all scanned domains
+- Filter by keyword, availability, registrar
+- Track expiration dates
+- Last checked timestamps
+- Remove individual or all domains
 
-**Example File:**
-```
-example.com
-test.com
-awesome-domain.io
-```
+**Filters:**
+- **Keyword**: Search domain names
+- **Status**: Available/Taken
+- **Registrar**: Filter by specific registrar
+- **Remove All**: Clear all monitored domains
 
-### 4. Advanced Filtering
+### 4. Expiring Domains
 
-**Filter Combinations:**
+**Quick Filters:**
+- ≤ 7 days (critical)
+- ≤ 14 days (urgent)
+- ≤ 30 days (important)
+- ≤ 60 days
+- ≤ 90 days
+- Custom days
 
-```
-Expiring in 30 days + Available + Premium
-→ Find premium domains about to expire
+**Use Cases:**
+- Find dropping domains
+- Plan renewals
+- Investment opportunities
+- Expired domain research
 
-Keyword "tech" + Registrar "GoDaddy"
-→ Find tech domains at specific registrar
-
-Expiring in 7 days + Not Premium
-→ Find affordable expiring domains
-```
-
-### 5. Subdomain Monitor
-
-**Automatic Discovery:**
-When checking domains with "Discover Subdomains" enabled, the system checks:
-- www
-- mail
-- ftp
-- admin
-- blog
-- shop
-- api
-- dev
-- staging
-- test
-
-**Tracking:**
-- All found subdomains stored
-- Last check timestamp
-- Filter by parent domain
-- Filter by check date
-
-### 6. Enhanced Portfolio
+### 5. Portfolio Management
 
 **Track:**
 - Domain names
@@ -266,32 +336,39 @@ When checking domains with "Discover Subdomains" enabled, the system checks:
 - Purchase dates
 - Total investment value
 
+**Features:**
+- Add/Remove domains
+- View total investment
+- Track by registrar
+- Export capability
+
+### 6. Profit Tracker
+
+**Record Sales:**
+- Buy price
+- Sell price
+- Buy/Sell dates
+- Notes
+
+**Analytics:**
+- Total sales count
+- Total profit
+- Average profit per sale
+- Average ROI percentage
+- Period filters (week/month/year)
+
+**Automatic Calculations:**
+- Profit per sale
+- ROI percentage
+- Total revenue
+- Total costs
+
 ## 💾 Database Structure
 
 ```json
 {
-  "domains": [
-    {
-      "domain": "example.com",
-      "available": false,
-      "hasDNS": true,
-      "expirationDate": "2025-12-31T00:00:00.000Z",
-      "creationDate": "2020-01-01T00:00:00.000Z",
-      "daysLeft": 365,
-      "registrar": "GoDaddy",
-      "nameServers": ["ns1.example.com"],
-      "premium": false,
-      "lastChecked": 1708176000000,
-      "subdomains": [
-        {
-          "subdomain": "www.example.com",
-          "exists": true,
-          "lastChecked": 1708176000000
-        }
-      ]
-    }
-  ],
-  "watchlist": ["example.com"],
+  "domains": [],
+  "watchlist": [],
   "portfolio": [
     {
       "id": "1708176000000",
@@ -302,14 +379,31 @@ When checking domains with "Discover Subdomains" enabled, the system checks:
       "dateAdded": "2024-02-17T00:00:00.000Z"
     }
   ],
-  "subdomains": [
+  "sales": [
     {
-      "subdomain": "www.example.com",
-      "exists": true,
-      "lastChecked": 1708176000000
+      "id": "1708176000000",
+      "domain": "sold.com",
+      "buyPrice": 10,
+      "sellPrice": 100,
+      "profit": 90,
+      "profitPercent": "900.0",
+      "buyDate": "2025-01-01",
+      "sellDate": "2026-02-18",
+      "notes": "Quick flip"
     }
   ],
-  "cache": {},
+  "cache": {
+    "example.com": {
+      "domain": "example.com",
+      "available": false,
+      "hasDNS": true,
+      "expirationDate": "2025-12-31T00:00:00.000Z",
+      "daysLeft": 365,
+      "registrar": "GoDaddy",
+      "method": "rdap",
+      "lastChecked": 1708176000000
+    }
+  },
   "stats": {
     "totalScans": 150,
     "totalDomains": 45,
@@ -323,66 +417,99 @@ When checking domains with "Discover Subdomains" enabled, the system checks:
 
 ### 1. Domain Investor
 ```
-1. Generate 50 geo-domains with AI
-2. Filter by "Available" + "Premium"
-3. Check expiration dates
-4. Add valuable finds to portfolio
-5. Track investment with registrar info
+1. Generate 50 geo-domains with AI + GeoNames
+2. Select location: Paris, France
+3. Keywords: "invest", "capital"
+4. Filter by "Available"
+5. Check expiration dates
+6. Add valuable finds to portfolio
+7. Track sales and ROI
 ```
 
-### 2. SEO Professional
+### 2. International Business
+```
+1. Use GeoNames to browse target countries
+2. Select cities in each country
+3. Generate localized domains
+4. Check availability across TLDs
+5. Build international portfolio
+```
+
+### 3. Domain Flipper
+```
+1. Monitor expiring domains (7-30 days)
+2. Filter by availability
+3. Add to watchlist
+4. Purchase when available
+5. Record buy price in portfolio
+6. Record sale in profit tracker
+7. Analyze ROI by period
+```
+
+### 4. SEO Professional
 ```
 1. Upload client domain list
-2. Enable subdomain discovery
-3. Monitor all subdomains
-4. Filter by expiring in 30 days
-5. Plan renewal strategy
-```
-
-### 3. Business Owner
-```
-1. Generate realistic business names
-2. Filter by keyword (your industry)
-3. Check availability
-4. Compare registrar pricing
-5. Add chosen domain to portfolio
-```
-
-### 4. Domain Researcher
-```
-1. Use advanced filters
-2. Find domains expiring soon
-3. Filter by specific registrars
-4. Discover premium opportunities
-5. Track trends over time
+2. Monitor expiration dates
+3. Set up renewal reminders
+4. Track registrar information
+5. Filter by days until expiration
 ```
 
 ## ⚙️ Configuration
 
-### AI Generator Customization
+### LLM Configuration (Settings Page)
 
-Edit `server.js` to customize AI patterns:
-
-```javascript
-const CITIES = ['new', 'san', 'los', 'miami', 'tokyo', ...];
-const COUNTRIES = ['usa', 'canada', 'france', ...];
-const PREFIXES = ['best', 'top', 'pro', 'my', ...];
-const KEYWORDS = ['web', 'tech', 'digital', ...];
-const TLDS = ['.com', '.net', '.org', '.io', ...];
+**Local LLM (Ollama) - FREE & RECOMMENDED:**
+```
+Provider: Local (Ollama)
+Model: qwen2.5:3b (recommended)
+Endpoint: http://localhost:11434/api/generate
 ```
 
-### Subdomain Discovery
-
-Add custom subdomains to check:
-
-```javascript
-const commonSubdomains = [
-    'www', 'mail', 'ftp', 'admin', 'blog',
-    'shop', 'api', 'dev', 'staging', 'test',
-    // Add your custom subdomains here
-    'app', 'cdn', 'media', 'static'
-];
+**OpenAI:**
 ```
+Provider: OpenAI
+API Key: sk-...
+Model: gpt-3.5-turbo
+```
+
+**Claude (Anthropic):**
+```
+Provider: Claude
+API Key: sk-ant-...
+Model: claude-3-haiku-20240307
+```
+
+**Perplexity:**
+```
+Provider: Perplexity
+API Key: pplx-...
+Model: llama-3.1-sonar-small-128k-online
+```
+
+**Grok (xAI):**
+```
+Provider: Grok
+API Key: xai-...
+Model: grok-beta
+```
+
+### GeoNames Configuration
+
+Update `GEONAMES_USERNAME` in `server.js`:
+```javascript
+const GEONAMES_USERNAME = 'your_username';
+```
+
+Get free username at: http://www.geonames.org/login
+
+### Custom TLDs
+
+In the AI Generator page:
+1. Scroll to "Add custom TLD extension"
+2. Enter TLD (e.g., `.madrid`, `.realty`, `.global`)
+3. Click "Add TLD"
+4. TLD will be included in generation
 
 ## 🚢 Deployment
 
@@ -418,16 +545,18 @@ docker run -p 3000:3000 -v $(pwd)/data:/app/data domain-hunter
 1. **Rate Limiting** - Implement for production
 2. **API Authentication** - Add JWT tokens
 3. **File Upload Validation** - Strict file type checking
-4. **Input Sanitization** - Already basic validation
+4. **Input Sanitization** - Already includes basic validation
 5. **HTTPS** - Always use SSL in production
+6. **Environment Variables** - Store API keys securely
 
 ## 📊 Performance Tips
 
-1. **Cache Management**: 24-hour auto-cache
+1. **Cache Management**: 24-hour auto-cache for domain checks
 2. **Bulk Operations**: Process 50+ domains efficiently
-3. **File Upload Limits**: Configure max file size
+3. **File Upload Limits**: Configure max file size in multer
 4. **Database Optimization**: Consider MongoDB for 10k+ domains
 5. **CDN Integration**: Serve static files faster
+6. **LLM Timeout**: Configured to 60s for large generations
 
 ## 🐛 Troubleshooting
 
@@ -440,20 +569,28 @@ chmod 755 uploads
 
 ### "AI generator not working"
 ```bash
+# Check if Ollama is running
+curl http://localhost:11434/api/generate
+
+# Pull the model
+ollama pull qwen2.5:3b
+
 # Check server logs
 npm start
-# Look for error messages
 ```
 
-### "Subdomain discovery fails"
-- Check DNS resolution
-- Verify internet connection
-- Some domains may block subdomain enumeration
+### "GeoNames API error"
+- Verify username is correct
+- Check daily API limit (free tier: 20,000 requests/day)
+- Ensure internet connection
+
+### "Perplexity/OpenAI API failed"
+- Verify API key is correct
+- Check API balance/credits
+- Remove unsupported parameters (like `temperature` for Perplexity)
 
 ## 🚀 Future Enhancements
 
-- [ ] Real WHOIS API integration
-- [ ] Machine learning domain valuation
 - [ ] Email alerts for expiring domains
 - [ ] Scheduled automated checking
 - [ ] Domain auction monitoring
@@ -462,9 +599,11 @@ npm start
 - [ ] Chrome extension
 - [ ] Mobile app (React Native)
 - [ ] Multi-user support with authentication
-- [ ] Advanced AI with GPT integration
 - [ ] Backlink analysis
 - [ ] SEO metrics integration
+- [ ] Domain appraisal with ML
+- [ ] Bulk WHOIS enrichment
+- [ ] Historical data tracking
 
 ## 🤝 Contributing
 
@@ -492,6 +631,8 @@ MIT License - See LICENSE file
 - Multer for file uploads
 - Font Awesome for beautiful icons
 - Node.js DNS module
+- GeoNames for location data
+- Ollama for local LLM support
 - Open source community
 
 ## 💬 Support
@@ -509,11 +650,22 @@ For issues or questions:
 
 ## 📝 Changelog
 
-### v2.0.0 (Latest)
+### v3.0.0 (Latest)
+- ✨ Added multi-LLM support (Local, OpenAI, Claude, Perplexity, Grok)
+- 🌍 Added GeoNames integration with 250+ countries
+- 🗺️ Added location-based domain generation
+- 👥 Added population filtering for cities
+- 🔧 Fixed TLD selection to only use selected TLDs
+- ⚙️ Fixed Perplexity API connection
+- 🗑️ Added "Remove All" button for monitoring
+- 🖱️ Made dashboard expiring domains clickable
+- 📊 Enhanced profit tracking with ROI analytics
+- 💰 Added sales history management
+
+### v2.0.0
 - ✨ Added AI domain generator (geo + realistic)
 - 📤 Added bulk file upload support
 - 🔍 Added advanced filtering system
-- 🌐 Added subdomain discovery & monitoring
 - 💼 Enhanced portfolio with registrar tracking
 - ⏰ Added expiration day filters
 - 📊 Added comprehensive statistics
