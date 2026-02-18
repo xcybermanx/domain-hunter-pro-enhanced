@@ -14,6 +14,7 @@ app.use(express.static('public'));
 
 const DB_FILE     = path.join(__dirname, 'data', 'domains.json');
 const CONFIG_FILE = path.join(__dirname, 'data', 'config.json');
+const GEONAMES_USERNAME = 'xcybermanx';
 
 if (!fs.existsSync(path.join(__dirname, 'data')))    fs.mkdirSync(path.join(__dirname, 'data'));
 if (!fs.existsSync(path.join(__dirname, 'uploads'))) fs.mkdirSync(path.join(__dirname, 'uploads'));
@@ -133,7 +134,6 @@ madridpro.io`;
             const r = await axios.post('https://api.x.ai/v1/chat/completions', { model: providerCfg.model || 'grok-1', messages: [{ role: 'user', content: prompt }], max_tokens: 800 }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
             responseText = r.data?.choices?.[0]?.message?.content || '';
         }
-        // FIXED regex: now allows dots in domain name part (for subdomains) + hyphens
         const lines = responseText.split(/\n/)
             .map(l => l.trim().toLowerCase().replace(/^[\d.\-)\s]+/, ''))
             .filter(l => /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(l));
@@ -308,6 +308,33 @@ app.post('/api/check-domains', async (req, res) => {
     res.json({ results, count: results.length });
 });
 
+// GeoNames API search endpoint
+app.get('/api/geonames/search', async (req, res) => {
+    const { q, type } = req.query;
+    if (!q) return res.status(400).json({ error: 'Query parameter required' });
+    const searchType = type === 'countries' ? 'countries' : 'cities';
+    try {
+        let url = '';
+        if (searchType === 'countries') {
+            url = `http://api.geonames.org/searchJSON?q=${encodeURIComponent(q)}&featureClass=A&featureCode=PCLI&maxRows=10&username=${GEONAMES_USERNAME}&style=SHORT`;
+        } else {
+            url = `http://api.geonames.org/searchJSON?q=${encodeURIComponent(q)}&featureClass=P&maxRows=10&username=${GEONAMES_USERNAME}&style=SHORT&orderby=population`;
+        }
+        const response = await axios.get(url, { timeout: 5000 });
+        const results = (response.data?.geonames || []).map(g => ({
+            name: g.name,
+            country: g.countryName || g.countryCode || '',
+            countryCode: g.countryCode || '',
+            population: g.population || 0,
+            geonameId: g.geonameId
+        }));
+        res.json({ results });
+    } catch (err) {
+        console.error('GeoNames API error:', err.message);
+        res.status(500).json({ error: 'Failed to fetch from GeoNames', details: err.message });
+    }
+});
+
 // AI Domain Generator
 app.post('/api/generate-domains', async (req, res) => {
     const { type, keywords, count, useLLM, tlds, minLength, maxLength, allowNumbers, allowHyphens } = req.body;
@@ -416,7 +443,6 @@ app.delete('/api/monitoring/:domain', (req, res) => {
     res.json({ success: true, removed: key });
 });
 
-// New: Expiring domains endpoint
 app.get('/api/expiring', (req, res) => {
     const maxDays = parseInt(req.query.maxDays) || 30;
     const db = readDB();
@@ -520,6 +546,7 @@ app.listen(PORT, () => {
     console.log(`📊 API:    http://localhost:${PORT}/api`);
     console.log(`\n✨ Features:`);
     console.log(`   - 🤖 AI Domain Generator with LLM support`);
+    console.log(`   - 🌍 GeoNames Location Integration (username: ${GEONAMES_USERNAME})`);
     console.log(`   - 🧪 Test LLM Connection`);
     console.log(`   - 📤 Bulk File Upload`);
     console.log(`   - 🔍 Advanced Filtering`);
