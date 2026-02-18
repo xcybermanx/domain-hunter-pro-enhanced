@@ -282,7 +282,9 @@ function displayResults(results, containerId) {
             : '<span class="badge badge-danger">Taken</span>';
         const premium = r.premium ? '<span class="badge badge-premium">PREMIUM</span>' : '';
         const exp = r.expirationDate ? new Date(r.expirationDate).toLocaleDateString() : 'N/A';
-        const days = r.daysLeft !== null ? r.daysLeft : 'N/A';
+        
+        // Fix: Handle both null and undefined for daysLeft
+        const days = (r.daysLeft !== null && r.daysLeft !== undefined) ? r.daysLeft : 'N/A';
         const value = r.estimatedValue ? `$${r.estimatedValue}` : 'N/A';
         
         html += `<tr>
