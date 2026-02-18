@@ -19,39 +19,30 @@
                 </div>
                 <span class="badge-ai">AI</span>
             </div>
-            
             <div class="sidebar-menu">
                 <a href="#dashboard" class="menu-item active" onclick="navigate('dashboard')">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Dashboard</span>
+                    <i class="fas fa-chart-line"></i><span>Dashboard</span>
                 </a>
                 <a href="#generator" class="menu-item" onclick="navigate('generator')">
-                    <i class="fas fa-magic"></i>
-                    <span>AI Generator</span>
+                    <i class="fas fa-magic"></i><span>AI Generator</span>
                 </a>
                 <a href="#scanner" class="menu-item" onclick="navigate('scanner')">
-                    <i class="fas fa-search"></i>
-                    <span>Scanner</span>
+                    <i class="fas fa-search"></i><span>Scanner</span>
                 </a>
                 <a href="#monitoring" class="menu-item" onclick="navigate('monitoring')">
-                    <i class="fas fa-eye"></i>
-                    <span>Monitoring</span>
+                    <i class="fas fa-eye"></i><span>Monitoring</span>
                     <span class="badge" id="monitorBadge">0</span>
                 </a>
                 <a href="#profit" class="menu-item" onclick="navigate('profit')">
-                    <i class="fas fa-dollar-sign"></i>
-                    <span>Profit Tracker</span>
+                    <i class="fas fa-dollar-sign"></i><span>Profit Tracker</span>
                 </a>
                 <a href="#portfolio" class="menu-item" onclick="navigate('portfolio')">
-                    <i class="fas fa-briefcase"></i>
-                    <span>Portfolio</span>
+                    <i class="fas fa-briefcase"></i><span>Portfolio</span>
                 </a>
                 <a href="#settings" class="menu-item" onclick="navigate('settings')">
-                    <i class="fas fa-cog"></i>
-                    <span>Settings</span>
+                    <i class="fas fa-cog"></i><span>Settings</span>
                 </a>
             </div>
-            
             <div class="sidebar-footer">
                 <div class="user-info">
                     <i class="fas fa-user-circle"></i>
@@ -62,120 +53,64 @@
                 </div>
             </div>
         </nav>
-        
+
         <!-- Main Content -->
         <main class="main-content">
+
             <!-- Dashboard Page -->
             <div id="dashboard-page" class="page active">
                 <div class="page-header">
                     <h1>Dashboard</h1>
-                    <button class="btn btn-primary" onclick="refreshStats()">
-                        <i class="fas fa-sync-alt"></i> Refresh
-                    </button>
+                    <button class="btn btn-primary" onclick="refreshStats()"><i class="fas fa-sync-alt"></i> Refresh</button>
                 </div>
-                
                 <div class="stats-grid">
                     <div class="stat-card gradient-purple">
                         <div class="stat-icon"><i class="fas fa-search"></i></div>
-                        <div class="stat-content">
-                            <div class="stat-value" id="totalScans">0</div>
-                            <div class="stat-label">Total Scans</div>
-                        </div>
+                        <div class="stat-content"><div class="stat-value" id="totalScans">0</div><div class="stat-label">Total Scans</div></div>
                     </div>
-                    
                     <div class="stat-card gradient-green">
                         <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
-                        <div class="stat-content">
-                            <div class="stat-value" id="availableDomains">0</div>
-                            <div class="stat-label">Available</div>
-                        </div>
+                        <div class="stat-content"><div class="stat-value" id="availableDomains">0</div><div class="stat-label">Available</div></div>
                     </div>
-                    
                     <div class="stat-card gradient-red">
                         <div class="stat-icon"><i class="fas fa-clock"></i></div>
-                        <div class="stat-content">
-                            <div class="stat-value" id="expiring7">0</div>
-                            <div class="stat-label">Expiring (7d)</div>
-                        </div>
+                        <div class="stat-content"><div class="stat-value" id="expiring7">0</div><div class="stat-label">Expiring (7d)</div></div>
                     </div>
-                    
                     <div class="stat-card gradient-gold">
                         <div class="stat-icon"><i class="fas fa-crown"></i></div>
-                        <div class="stat-content">
-                            <div class="stat-value" id="premiumDomains">0</div>
-                            <div class="stat-label">Premium</div>
-                        </div>
+                        <div class="stat-content"><div class="stat-value" id="premiumDomains">0</div><div class="stat-label">Premium</div></div>
                     </div>
                 </div>
-                
                 <div class="profit-cards">
-                    <div class="profit-card">
-                        <div class="profit-header">
-                            <i class="fas fa-dollar-sign"></i>
-                            <span>Total Profit</span>
-                        </div>
-                        <div class="profit-amount" id="totalProfit">$0</div>
-                        <div class="profit-subtitle">All Time</div>
-                    </div>
-                    
-                    <div class="profit-card">
-                        <div class="profit-header">
-                            <i class="fas fa-chart-line"></i>
-                            <span>Revenue</span>
-                        </div>
-                        <div class="profit-amount" id="totalRevenue">$0</div>
-                        <div class="profit-subtitle">Total Sales</div>
-                    </div>
-                    
-                    <div class="profit-card">
-                        <div class="profit-header">
-                            <i class="fas fa-shopping-cart"></i>
-                            <span>Invested</span>
-                        </div>
-                        <div class="profit-amount" id="totalInvested">$0</div>
-                        <div class="profit-subtitle">Total Purchases</div>
-                    </div>
-                    
-                    <div class="profit-card">
-                        <div class="profit-header">
-                            <i class="fas fa-percentage"></i>
-                            <span>ROI</span>
-                        </div>
-                        <div class="profit-amount" id="totalROI">0%</div>
-                        <div class="profit-subtitle">Return Rate</div>
-                    </div>
+                    <div class="profit-card"><div class="profit-header"><i class="fas fa-dollar-sign"></i><span>Total Profit</span></div><div class="profit-amount" id="totalProfit">$0</div><div class="profit-subtitle">All Time</div></div>
+                    <div class="profit-card"><div class="profit-header"><i class="fas fa-chart-line"></i><span>Revenue</span></div><div class="profit-amount" id="totalRevenue">$0</div><div class="profit-subtitle">Total Sales</div></div>
+                    <div class="profit-card"><div class="profit-header"><i class="fas fa-shopping-cart"></i><span>Invested</span></div><div class="profit-amount" id="totalInvested">$0</div><div class="profit-subtitle">Total Purchases</div></div>
+                    <div class="profit-card"><div class="profit-header"><i class="fas fa-percentage"></i><span>ROI</span></div><div class="profit-amount" id="totalROI">0%</div><div class="profit-subtitle">Return Rate</div></div>
                 </div>
             </div>
-            
+
             <!-- AI Generator Page -->
             <div id="generator-page" class="page">
                 <div class="page-header">
                     <h1>🤖 AI Domain Generator</h1>
                 </div>
-                
                 <div class="content-card">
                     <h3>Generation Type</h3>
                     <div class="option-grid">
                         <div class="option-card active" id="opt-geo" onclick="selectGenType('geo')">
-                            <i class="fas fa-globe"></i>
-                            <h4>Geo Domains</h4>
-                            <p>City + Country combinations</p>
+                            <i class="fas fa-globe"></i><h4>Geo Domains</h4><p>City + Country combinations</p>
                         </div>
                         <div class="option-card" id="opt-realistic" onclick="selectGenType('realistic')">
-                            <i class="fas fa-lightbulb"></i>
-                            <h4>Realistic Names</h4>
-                            <p>Business-ready domains</p>
+                            <i class="fas fa-lightbulb"></i><h4>Realistic Names</h4><p>Business-ready domains</p>
                         </div>
                         <div class="option-card" id="opt-mixed" onclick="selectGenType('mixed')">
-                            <i class="fas fa-random"></i>
-                            <h4>Mixed</h4>
-                            <p>Combination of both</p>
+                            <i class="fas fa-random"></i><h4>Mixed</h4><p>Combination of both</p>
                         </div>
                     </div>
-                    
+
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Custom Keywords (optional)</label>
+                            <label>Custom Keywords (optional, comma-separated)</label>
                             <input type="text" id="genKeywords" placeholder="tech, shop, market, hub">
                         </div>
                         <div class="form-group">
@@ -183,96 +118,85 @@
                             <input type="number" id="genCount" value="20" min="5" max="100">
                         </div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label>Domain Extensions (TLDs)</label>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 10px;">
-                            <label class="checkbox-label" style="margin: 0;">
-                                <input type="checkbox" class="tld-checkbox" value=".com" checked>
-                                <span>.com</span>
-                            </label>
-                            <label class="checkbox-label" style="margin: 0;">
-                                <input type="checkbox" class="tld-checkbox" value=".net" checked>
-                                <span>.net</span>
-                            </label>
-                            <label class="checkbox-label" style="margin: 0;">
-                                <input type="checkbox" class="tld-checkbox" value=".org" checked>
-                                <span>.org</span>
-                            </label>
-                            <label class="checkbox-label" style="margin: 0;">
-                                <input type="checkbox" class="tld-checkbox" value=".io" checked>
-                                <span>.io</span>
-                            </label>
-                            <label class="checkbox-label" style="margin: 0;">
-                                <input type="checkbox" class="tld-checkbox" value=".ai">
-                                <span>.ai</span>
-                            </label>
-                            <label class="checkbox-label" style="margin: 0;">
-                                <input type="checkbox" class="tld-checkbox" value=".co">
-                                <span>.co</span>
-                            </label>
-                            <label class="checkbox-label" style="margin: 0;">
-                                <input type="checkbox" class="tld-checkbox" value=".app">
-                                <span>.app</span>
-                            </label>
-                            <label class="checkbox-label" style="margin: 0;">
-                                <input type="checkbox" class="tld-checkbox" value=".dev">
-                                <span>.dev</span>
-                            </label>
-                            <label class="checkbox-label" style="margin: 0;">
-                                <input type="checkbox" class="tld-checkbox" value=".tech">
-                                <span>.tech</span>
-                            </label>
-                            <label class="checkbox-label" style="margin: 0;">
-                                <input type="checkbox" class="tld-checkbox" value=".online">
-                                <span>.online</span>
-                            </label>
-                            <label class="checkbox-label" style="margin: 0;">
-                                <input type="checkbox" class="tld-checkbox" value=".store">
-                                <span>.store</span>
-                            </label>
-                            <label class="checkbox-label" style="margin: 0;">
-                                <input type="checkbox" class="tld-checkbox" value=".shop">
-                                <span>.shop</span>
-                            </label>
-                            <label class="checkbox-label" style="margin: 0;">
-                                <input type="checkbox" class="tld-checkbox" value=".xyz">
-                                <span>.xyz</span>
-                            </label>
-                            <label class="checkbox-label" style="margin: 0;">
-                                <input type="checkbox" class="tld-checkbox" value=".club">
-                                <span>.club</span>
-                            </label>
+
+                    <!-- ✅ FIX #9 — Domain length + numbers controls -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Min Name Length <small style="color:#9ca3af">(chars, excl. TLD)</small></label>
+                            <input type="number" id="minLength" value="4" min="2" max="20" placeholder="4">
+                        </div>
+                        <div class="form-group">
+                            <label>Max Name Length <small style="color:#9ca3af">(chars, excl. TLD)</small></label>
+                            <input type="number" id="maxLength" value="20" min="2" max="63" placeholder="20">
                         </div>
                     </div>
-                    
+
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="allowNumbers" checked>
+                            <span>Allow Numbers in domain names</span>
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Domain Extensions (TLDs)</label>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-top:10px;">
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".com" checked><span>.com</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".net" checked><span>.net</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".org" checked><span>.org</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".io" checked><span>.io</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".ai"><span>.ai</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".co"><span>.co</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".app"><span>.app</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".dev"><span>.dev</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".tech"><span>.tech</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".online"><span>.online</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".store"><span>.store</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".shop"><span>.shop</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".xyz"><span>.xyz</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".club"><span>.club</span></label>
+                        </div>
+                    </div>
+
+                    <!-- ✅ FIX #10 — Custom domain add UI -->
+                    <div class="form-group" style="background:rgba(99,102,241,0.05);border:1px dashed #818cf8;border-radius:12px;padding:16px;margin-bottom:16px;">
+                        <label style="color:#6366f1;font-weight:700;">➕ Add Custom Domain to Scanner</label>
+                        <div style="display:flex;gap:10px;margin-top:8px;">
+                            <input type="text" id="customDomain" placeholder="e.g. myawesomesite.com" style="flex:1;">
+                            <button class="btn btn-secondary" onclick="addCustomDomainToScanner()" style="white-space:nowrap;">
+                                <i class="fas fa-plus"></i> Add to Scanner
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="useLLM">
                             <span>🤖 Use AI/LLM (Configure in Settings)</span>
                         </label>
                     </div>
-                    
-                    <!-- Loading Spinner -->
-                    <div id="generationProgress" style="display: none; text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); border-radius: 12px; margin-bottom: 20px;">
-                        <div style="font-size: 48px; margin-bottom: 15px;">
-                            <i class="fas fa-magic" style="color: #8b5cf6; animation: spin 2s linear infinite;"></i>
+
+                    <!-- ✅ FIX #7 — Progress block with correct id -->
+                    <div id="generationProgress" style="display:none;text-align:center;padding:20px;background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.1));border-radius:12px;margin-bottom:20px;">
+                        <div style="font-size:48px;margin-bottom:15px;">
+                            <i class="fas fa-magic" style="color:#8b5cf6;animation:spin 2s linear infinite;"></i>
                         </div>
-                        <h3 style="color: #8b5cf6; margin: 0 0 10px 0;">🎯 Generating Domains...</h3>
-                        <p style="color: #6b7280; margin: 0;">AI is creating creative domain names for you</p>
-                        <div style="margin-top: 15px;">
-                            <div style="height: 6px; background: rgba(139, 92, 246, 0.2); border-radius: 10px; overflow: hidden;">
-                                <div style="height: 100%; background: linear-gradient(90deg, #8b5cf6, #6366f1); border-radius: 10px; animation: progress 2s ease-in-out infinite;"></div>
+                        <h3 style="color:#8b5cf6;margin:0 0 10px;">🎯 Generating Domains...</h3>
+                        <p style="color:#6b7280;margin:0;">AI is creating domain names based on your settings</p>
+                        <div style="margin-top:15px;">
+                            <div style="height:6px;background:rgba(139,92,246,0.2);border-radius:10px;overflow:hidden;">
+                                <div style="height:100%;background:linear-gradient(90deg,#8b5cf6,#6366f1);border-radius:10px;animation:progressAnim 1.5s ease-in-out infinite;"></div>
                             </div>
                         </div>
                     </div>
-                    
+
+                    <!-- ✅ FIX #7 — id="generateBtn" on the button -->
                     <button class="btn btn-primary btn-large" onclick="generateDomains()" id="generateBtn">
                         <i class="fas fa-magic"></i> Generate Domains
                     </button>
                 </div>
             </div>
-            
+
             <!-- Scanner Page -->
             <div id="scanner-page" class="page">
                 <div class="page-header">
@@ -280,39 +204,43 @@
                     <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">
                         <i class="fas fa-upload"></i> Upload File
                     </button>
-                    <input type="file" id="fileInput" style="display: none;" accept=".txt,.csv" onchange="uploadFile()">
+                    <input type="file" id="fileInput" style="display:none;" accept=".txt,.csv" onchange="uploadFile()">
                 </div>
-                
                 <div class="content-card">
                     <div class="form-group">
                         <label>Enter Domains (one per line)</label>
-                        <textarea id="domainInput" rows="10" placeholder="example.com\ntest.io\nawesome-domain.app"></textarea>
+                        <textarea id="domainInput" rows="10" placeholder="example.com&#10;test.io&#10;awesome-domain.app"></textarea>
                     </div>
-                    
-                    <!-- Scanning Progress -->
-                    <div id="scanProgress" style="display: none; text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(34, 197, 94, 0.1)); border-radius: 12px; margin-bottom: 20px;">
-                        <div style="font-size: 48px; margin-bottom: 15px;">
-                            <i class="fas fa-satellite-dish" style="color: #10b981; animation: pulse 1.5s ease-in-out infinite;"></i>
+
+                    <!-- ✅ FIX #1 — Scan Progress block -->
+                    <div id="scanProgress" style="display:none;text-align:center;padding:20px;background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(34,197,94,0.1));border-radius:12px;margin-bottom:20px;">
+                        <div style="font-size:48px;margin-bottom:15px;">
+                            <i class="fas fa-satellite-dish" style="color:#10b981;animation:pulse 1.5s ease-in-out infinite;"></i>
                         </div>
-                        <h3 style="color: #10b981; margin: 0 0 10px 0;">🔍 Scanning Domains...</h3>
-                        <p style="color: #6b7280; margin: 0;" id="scanProgressText">Please wait...</p>
+                        <h3 style="color:#10b981;margin:0 0 10px;">🔍 Scanning Domains...</h3>
+                        <p style="color:#6b7280;margin:0;" id="scanProgressText">Please wait...</p>
+                        <div style="margin-top:15px;">
+                            <div style="height:6px;background:rgba(16,185,129,0.2);border-radius:10px;overflow:hidden;">
+                                <div style="height:100%;background:linear-gradient(90deg,#10b981,#059669);border-radius:10px;animation:progressAnim 1.5s ease-in-out infinite;"></div>
+                            </div>
+                        </div>
                     </div>
-                    
+
+                    <!-- ✅ FIX #1 — id="checkBtn" on the button -->
                     <button class="btn btn-primary btn-large" onclick="checkDomains()" id="checkBtn">
                         <i class="fas fa-rocket"></i> Check Domains
                     </button>
-                    
-                    <div id="scanResults"></div>
+
+                    <div id="scanResults" style="margin-top:20px;"></div>
                 </div>
             </div>
-            
+
             <!-- Monitoring Page -->
             <div id="monitoring-page" class="page">
                 <div class="page-header">
                     <h1>👁️ Domain Monitoring</h1>
                     <p>All scanned domains are automatically stored here</p>
                 </div>
-                
                 <div class="content-card">
                     <div class="filter-bar">
                         <input type="text" id="monitorKeyword" placeholder="Search domains...">
@@ -322,18 +250,13 @@
                             <option value="false">Taken</option>
                         </select>
                         <input type="text" id="monitorRegistrar" placeholder="Registrar...">
-                        <button class="btn btn-primary" onclick="applyMonitorFilters()">
-                            <i class="fas fa-filter"></i> Filter
-                        </button>
-                        <button class="btn btn-secondary" onclick="clearMonitorFilters()">
-                            <i class="fas fa-times"></i> Clear
-                        </button>
+                        <button class="btn btn-primary" onclick="applyMonitorFilters()"><i class="fas fa-filter"></i> Filter</button>
+                        <button class="btn btn-secondary" onclick="clearMonitorFilters()"><i class="fas fa-times"></i> Clear</button>
                     </div>
-                    
                     <div id="monitoringResults"></div>
                 </div>
             </div>
-            
+
             <!-- Profit Tracker Page -->
             <div id="profit-page" class="page">
                 <div class="page-header">
@@ -344,100 +267,48 @@
                         <button class="period-tab" onclick="loadProfitAnalytics('year')">Year</button>
                     </div>
                 </div>
-                
                 <div class="content-card">
                     <h3>Add Sale</h3>
                     <div class="form-grid">
-                        <div class="form-group">
-                            <label>Domain</label>
-                            <input type="text" id="saleDomain" placeholder="example.com">
-                        </div>
-                        <div class="form-group">
-                            <label>Buy Price ($)</label>
-                            <input type="number" id="saleBuyPrice" placeholder="5" step="0.01">
-                        </div>
-                        <div class="form-group">
-                            <label>Sell Price ($)</label>
-                            <input type="number" id="saleSellPrice" placeholder="50" step="0.01">
-                        </div>
-                        <div class="form-group">
-                            <label>Buy Date</label>
-                            <input type="date" id="saleBuyDate">
-                        </div>
-                        <div class="form-group">
-                            <label>Sell Date</label>
-                            <input type="date" id="saleSellDate">
-                        </div>
-                        <div class="form-group full-width">
-                            <label>Notes</label>
-                            <input type="text" id="saleNotes" placeholder="Optional notes...">
-                        </div>
+                        <div class="form-group"><label>Domain</label><input type="text" id="saleDomain" placeholder="example.com"></div>
+                        <div class="form-group"><label>Buy Price ($)</label><input type="number" id="saleBuyPrice" placeholder="5" step="0.01"></div>
+                        <div class="form-group"><label>Sell Price ($)</label><input type="number" id="saleSellPrice" placeholder="50" step="0.01"></div>
+                        <div class="form-group"><label>Buy Date</label><input type="date" id="saleBuyDate"></div>
+                        <div class="form-group"><label>Sell Date</label><input type="date" id="saleSellDate"></div>
+                        <div class="form-group full-width"><label>Notes</label><input type="text" id="saleNotes" placeholder="Optional notes..."></div>
                     </div>
-                    <button class="btn btn-success btn-large" onclick="addSale()">
-                        <i class="fas fa-plus"></i> Add Sale
-                    </button>
+                    <button class="btn btn-success btn-large" onclick="addSale()"><i class="fas fa-plus"></i> Add Sale</button>
                 </div>
-                
-                <div class="content-card">
-                    <h3>Sales History</h3>
-                    <div id="salesList"></div>
-                </div>
-                
-                <div class="content-card">
-                    <h3>Analytics</h3>
-                    <div id="profitAnalytics"></div>
-                </div>
+                <div class="content-card"><h3>Sales History</h3><div id="salesList"></div></div>
+                <div class="content-card"><h3>Analytics</h3><div id="profitAnalytics"></div></div>
             </div>
-            
+
             <!-- Portfolio Page -->
             <div id="portfolio-page" class="page">
-                <div class="page-header">
-                    <h1>💼 Portfolio</h1>
-                </div>
-                
+                <div class="page-header"><h1>💼 Portfolio</h1></div>
                 <div class="content-card">
                     <h3>Add Domain to Portfolio</h3>
                     <div class="form-grid">
-                        <div class="form-group">
-                            <label>Domain</label>
-                            <input type="text" id="portfolioDomain" placeholder="example.com">
-                        </div>
-                        <div class="form-group">
-                            <label>Price ($)</label>
-                            <input type="number" id="portfolioPrice" placeholder="100">
-                        </div>
-                        <div class="form-group">
-                            <label>Registrar</label>
-                            <input type="text" id="portfolioRegistrar" placeholder="GoDaddy">
-                        </div>
-                        <div class="form-group full-width">
-                            <label>Notes</label>
-                            <input type="text" id="portfolioNotes" placeholder="Investment notes...">
-                        </div>
+                        <div class="form-group"><label>Domain</label><input type="text" id="portfolioDomain" placeholder="example.com"></div>
+                        <div class="form-group"><label>Price ($)</label><input type="number" id="portfolioPrice" placeholder="100"></div>
+                        <div class="form-group"><label>Registrar</label><input type="text" id="portfolioRegistrar" placeholder="GoDaddy"></div>
+                        <div class="form-group full-width"><label>Notes</label><input type="text" id="portfolioNotes" placeholder="Investment notes..."></div>
                     </div>
-                    <button class="btn btn-primary btn-large" onclick="addToPortfolio()">
-                        <i class="fas fa-plus"></i> Add to Portfolio
-                    </button>
+                    <button class="btn btn-primary btn-large" onclick="addToPortfolio()"><i class="fas fa-plus"></i> Add to Portfolio</button>
                 </div>
-                
-                <div class="content-card">
-                    <h3>My Domains</h3>
-                    <div id="portfolioList"></div>
-                </div>
+                <div class="content-card"><h3>My Domains</h3><div id="portfolioList"></div></div>
             </div>
-            
+
             <!-- Settings Page -->
             <div id="settings-page" class="page">
                 <div class="page-header">
                     <h1>⚙️ AI Settings</h1>
-                    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1)); padding: 15px 20px; border-radius: 12px; border-left: 4px solid #10b981;">
-                        <strong style="color: #10b981;">✨ Recommended:</strong> <strong>Qwen2.5:3b</strong> or <strong>Phi3:mini</strong> - Best balance of speed & quality!
+                    <div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(59,130,246,0.1));padding:15px 20px;border-radius:12px;border-left:4px solid #10b981;">
+                        <strong style="color:#10b981;">✨ Recommended:</strong> <strong>Qwen2.5:3b</strong> or <strong>Phi3:mini</strong>
                     </div>
                 </div>
-                
                 <div class="content-card">
                     <h3>🤖 LLM Configuration</h3>
-                    
                     <div class="form-group">
                         <label>Provider</label>
                         <select id="llmProvider" onchange="updateLLMProvider()">
@@ -448,185 +319,72 @@
                             <option value="grok">Grok (xAI) - Paid</option>
                         </select>
                     </div>
-                    
-                    <!-- Test Connection Result -->
-                    <div id="connectionTestResult" style="display: none; margin-bottom: 20px;"></div>
-                    
+                    <div id="connectionTestResult" style="display:none;margin-bottom:20px;"></div>
                     <!-- Local Config -->
                     <div id="localConfig" class="llm-config">
                         <h4><i class="fas fa-server"></i> Local LLM (Ollama) - FREE</h4>
+                        <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="localEnabled"><span>Enable Local LLM</span></label></div>
                         <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="localEnabled">
-                                <span>Enable Local LLM</span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label>Model <span style="color: #10b981; font-weight: 700;">⭐ Top Picks</span></label>
+                            <label>Model <span style="color:#10b981;font-weight:700;">⭐ Top Picks</span></label>
                             <select id="localModel">
-                                <option value="qwen2.5:3b" selected>⭐ Qwen2.5:3b (Recommended - Fast & Smart)</option>
-                                <option value="phi3:mini">⭐ Phi3:mini (Microsoft - Ultra Fast & Efficient)</option>
-                                <option value="qwen2.5:7b">Qwen2.5:7b (Better Quality, Slower)</option>
-                                <option value="llama2:7b">LLaMA 2 7B (Meta)</option>
-                                <option value="mistral:7b">Mistral 7B (Very Good)</option>
-                                <option value="gemma:7b">Gemma 7B (Google)</option>
-                                <option value="phi">Phi-2 (Fast)</option>
-                                <option value="tinyllama">TinyLlama (Lightweight)</option>
+                                <option value="qwen2.5:3b" selected>⭐ Qwen2.5:3b (Recommended)</option>
+                                <option value="phi3:mini">⭐ Phi3:mini (Ultra Fast)</option>
+                                <option value="qwen2.5:7b">Qwen2.5:7b (Better Quality)</option>
+                                <option value="llama2:7b">LLaMA 2 7B</option>
+                                <option value="mistral:7b">Mistral 7B</option>
+                                <option value="gemma:7b">Gemma 7B</option>
+                                <option value="tinyllama">TinyLlama</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label>Endpoint</label>
-                            <input type="text" id="localEndpoint" value="http://localhost:11434/api/generate">
-                        </div>
-                        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                            <button class="btn btn-secondary" onclick="testConnection('local')" style="flex: 1;">
-                                <i class="fas fa-vial"></i> Test Connection
-                            </button>
-                        </div>
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>🚀 Quick Setup:</strong>
-                            <ol>
-                                <li>Install: <code>curl -fsSL https://ollama.com/install.sh | sh</code></li>
-                                <li>Pull model: <code>ollama pull qwen2.5:3b</code> or <code>ollama pull phi3:mini</code></li>
-                                <li>Start: <code>ollama serve</code></li>
-                            </ol>
-                        </div>
+                        <div class="form-group"><label>Endpoint</label><input type="text" id="localEndpoint" value="http://localhost:11434/api/generate"></div>
+                        <button class="btn btn-secondary" onclick="testConnection('local')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test Connection</button>
+                        <div class="alert alert-info"><i class="fas fa-info-circle"></i> <strong>Quick Setup:</strong><br>1. <code>ollama pull qwen2.5:3b</code><br>2. <code>ollama serve</code></div>
                     </div>
-                    
                     <!-- OpenAI Config -->
-                    <div id="openaiConfig" class="llm-config" style="display: none;">
+                    <div id="openaiConfig" class="llm-config" style="display:none;">
                         <h4><i class="fab fa-openai"></i> OpenAI</h4>
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="openaiEnabled">
-                                <span>Enable OpenAI</span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label>API Key</label>
-                            <input type="password" id="openaiKey" placeholder="sk-...">
-                        </div>
-                        <div class="form-group">
-                            <label>Model</label>
-                            <select id="openaiModel">
-                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Cheaper)</option>
-                                <option value="gpt-4">GPT-4 (Better)</option>
-                                <option value="gpt-4-turbo">GPT-4 Turbo (Fastest)</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-secondary" onclick="testConnection('openai')" style="width: 100%; margin-bottom: 15px;">
-                            <i class="fas fa-vial"></i> Test API Connection
-                        </button>
+                        <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="openaiEnabled"><span>Enable OpenAI</span></label></div>
+                        <div class="form-group"><label>API Key</label><input type="password" id="openaiKey" placeholder="sk-..."></div>
+                        <div class="form-group"><label>Model</label><select id="openaiModel"><option value="gpt-3.5-turbo">GPT-3.5 Turbo</option><option value="gpt-4">GPT-4</option><option value="gpt-4-turbo">GPT-4 Turbo</option></select></div>
+                        <button class="btn btn-secondary" onclick="testConnection('openai')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test API Connection</button>
                     </div>
-                    
                     <!-- Claude Config -->
-                    <div id="claudeConfig" class="llm-config" style="display: none;">
+                    <div id="claudeConfig" class="llm-config" style="display:none;">
                         <h4><i class="fas fa-brain"></i> Claude</h4>
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="claudeEnabled">
-                                <span>Enable Claude</span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label>API Key</label>
-                            <input type="password" id="claudeKey" placeholder="sk-ant-...">
-                        </div>
-                        <div class="form-group">
-                            <label>Model</label>
-                            <select id="claudeModel">
-                                <option value="claude-3-haiku">Claude 3 Haiku (Fast)</option>
-                                <option value="claude-3-sonnet">Claude 3 Sonnet (Balanced)</option>
-                                <option value="claude-3-opus">Claude 3 Opus (Best)</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-secondary" onclick="testConnection('claude')" style="width: 100%; margin-bottom: 15px;">
-                            <i class="fas fa-vial"></i> Test API Connection
-                        </button>
+                        <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="claudeEnabled"><span>Enable Claude</span></label></div>
+                        <div class="form-group"><label>API Key</label><input type="password" id="claudeKey" placeholder="sk-ant-..."></div>
+                        <div class="form-group"><label>Model</label><select id="claudeModel"><option value="claude-3-haiku">Claude 3 Haiku</option><option value="claude-3-sonnet">Claude 3 Sonnet</option><option value="claude-3-opus">Claude 3 Opus</option></select></div>
+                        <button class="btn btn-secondary" onclick="testConnection('claude')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test API Connection</button>
                     </div>
-                    
                     <!-- Perplexity Config -->
-                    <div id="perplexityConfig" class="llm-config" style="display: none;">
+                    <div id="perplexityConfig" class="llm-config" style="display:none;">
                         <h4><i class="fas fa-bolt"></i> Perplexity API</h4>
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="perplexityEnabled">
-                                <span>Enable Perplexity</span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label>API Key</label>
-                            <input type="password" id="perplexityKey" placeholder="pplx-...">
-                        </div>
-                        <div class="form-group">
-                            <label>Model</label>
-                            <select id="perplexityModel">
-                                <option value="llama-3.1-sonar-small-128k-online">Sonar Small Online (Fast)</option>
-                                <option value="llama-3.1-sonar-large-128k-online">Sonar Large Online (Better)</option>
-                                <option value="llama-3.1-sonar-huge-128k-online">Sonar Huge Online (Best)</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-secondary" onclick="testConnection('perplexity')" style="width: 100%; margin-bottom: 15px;">
-                            <i class="fas fa-vial"></i> Test API Connection
-                        </button>
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>Get API Key:</strong><br>
-                            Visit <a href="https://www.perplexity.ai/settings/api" target="_blank" style="color: #3b82f6;">perplexity.ai/settings/api</a>
-                        </div>
+                        <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="perplexityEnabled"><span>Enable Perplexity</span></label></div>
+                        <div class="form-group"><label>API Key</label><input type="password" id="perplexityKey" placeholder="pplx-..."></div>
+                        <div class="form-group"><label>Model</label><select id="perplexityModel"><option value="llama-3.1-sonar-small-128k-online">Sonar Small</option><option value="llama-3.1-sonar-large-128k-online">Sonar Large</option></select></div>
+                        <button class="btn btn-secondary" onclick="testConnection('perplexity')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test API Connection</button>
                     </div>
-                    
                     <!-- Grok Config -->
-                    <div id="grokConfig" class="llm-config" style="display: none;">
+                    <div id="grokConfig" class="llm-config" style="display:none;">
                         <h4><i class="fas fa-robot"></i> Grok</h4>
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="grokEnabled">
-                                <span>Enable Grok</span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label>API Key</label>
-                            <input type="password" id="grokKey" placeholder="xai-...">
-                        </div>
-                        <div class="form-group">
-                            <label>Model</label>
-                            <select id="grokModel">
-                                <option value="grok-1">Grok-1</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-secondary" onclick="testConnection('grok')" style="width: 100%; margin-bottom: 15px;">
-                            <i class="fas fa-vial"></i> Test API Connection
-                        </button>
+                        <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="grokEnabled"><span>Enable Grok</span></label></div>
+                        <div class="form-group"><label>API Key</label><input type="password" id="grokKey" placeholder="xai-..."></div>
+                        <div class="form-group"><label>Model</label><select id="grokModel"><option value="grok-1">Grok-1</option></select></div>
+                        <button class="btn btn-secondary" onclick="testConnection('grok')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test API Connection</button>
                     </div>
-                    
-                    <button class="btn btn-success btn-large" onclick="saveConfig()">
-                        <i class="fas fa-save"></i> Save Configuration
-                    </button>
+                    <button class="btn btn-success btn-large" onclick="saveConfig()"><i class="fas fa-save"></i> Save Configuration</button>
                 </div>
             </div>
+
         </main>
     </div>
-    
+
     <style>
-    @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-    
-    @keyframes pulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.7; transform: scale(1.1); }
-    }
-    
-    @keyframes progress {
-        0% { width: 0%; }
-        50% { width: 70%; }
-        100% { width: 100%; }
-    }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.7; transform:scale(1.1); } }
+    @keyframes progressAnim { 0% { width:5%; } 50% { width:75%; } 100% { width:95%; } }
     </style>
-    
+
     <script src="app.js"></script>
 </body>
 </html>
