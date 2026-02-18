@@ -346,7 +346,7 @@
                 <div class="page-header">
                     <h1>⚙️ AI Settings</h1>
                     <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1)); padding: 15px 20px; border-radius: 12px; border-left: 4px solid #10b981;">
-                        <strong style="color: #10b981;">✨ Recommended:</strong> <strong>Qwen2.5:3b</strong> - Best balance of speed & quality!
+                        <strong style="color: #10b981;">✨ Recommended:</strong> <strong>Qwen2.5:3b</strong> or <strong>Phi3:mini</strong> - Best balance of speed & quality!
                     </div>
                 </div>
                 
@@ -377,14 +377,15 @@
                             </label>
                         </div>
                         <div class="form-group">
-                            <label>Model <span style="color: #10b981; font-weight: 700;">⭐ Qwen2.5:3b Recommended</span></label>
+                            <label>Model <span style="color: #10b981; font-weight: 700;">⭐ Top Picks</span></label>
                             <select id="localModel">
                                 <option value="qwen2.5:3b" selected>⭐ Qwen2.5:3b (Recommended - Fast & Smart)</option>
+                                <option value="phi3:mini">⭐ Phi3:mini (Microsoft - Ultra Fast & Efficient)</option>
                                 <option value="qwen2.5:7b">Qwen2.5:7b (Better Quality, Slower)</option>
                                 <option value="llama2:7b">LLaMA 2 7B (Meta)</option>
                                 <option value="mistral:7b">Mistral 7B (Very Good)</option>
                                 <option value="gemma:7b">Gemma 7B (Google)</option>
-                                <option value="phi">Phi-2 (Microsoft - Ultra Fast)</option>
+                                <option value="phi">Phi-2 (Fast)</option>
                                 <option value="tinyllama">TinyLlama (Lightweight)</option>
                             </select>
                         </div>
@@ -399,13 +400,12 @@
                         </div>
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle"></i>
-                            <strong>🚀 Quick Setup (3 steps):</strong>
+                            <strong>🚀 Quick Setup:</strong>
                             <ol>
-                                <li>Install Ollama: <code>curl -fsSL https://ollama.com/install.sh | sh</code></li>
-                                <li>Pull Qwen2.5:3b: <code>ollama pull qwen2.5:3b</code></li>
-                                <li>Start server: <code>ollama serve</code></li>
+                                <li>Install: <code>curl -fsSL https://ollama.com/install.sh | sh</code></li>
+                                <li>Pull model: <code>ollama pull qwen2.5:3b</code> or <code>ollama pull phi3:mini</code></li>
+                                <li>Start: <code>ollama serve</code></li>
                             </ol>
-                            <a href="https://github.com/xcybermanx/domain-hunter-pro-enhanced/blob/main/LLM_SETUP.md" target="_blank" style="color: #3b82f6; font-weight: 700;">📚 Full Setup Guide →</a>
                         </div>
                     </div>
                     
@@ -488,7 +488,7 @@
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle"></i>
                             <strong>Get API Key:</strong><br>
-                            Visit <a href="https://www.perplexity.ai/settings/api" target="_blank" style="color: #3b82f6;">perplexity.ai/settings/api</a> to get your API key
+                            Visit <a href="https://www.perplexity.ai/settings/api" target="_blank" style="color: #3b82f6;">perplexity.ai/settings/api</a>
                         </div>
                     </div>
                     
