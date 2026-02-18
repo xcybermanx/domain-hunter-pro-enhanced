@@ -185,13 +185,89 @@
                     </div>
                     
                     <div class="form-group">
+                        <label>Domain Extensions (TLDs)</label>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 10px;">
+                            <label class="checkbox-label" style="margin: 0;">
+                                <input type="checkbox" class="tld-checkbox" value=".com" checked>
+                                <span>.com</span>
+                            </label>
+                            <label class="checkbox-label" style="margin: 0;">
+                                <input type="checkbox" class="tld-checkbox" value=".net" checked>
+                                <span>.net</span>
+                            </label>
+                            <label class="checkbox-label" style="margin: 0;">
+                                <input type="checkbox" class="tld-checkbox" value=".org" checked>
+                                <span>.org</span>
+                            </label>
+                            <label class="checkbox-label" style="margin: 0;">
+                                <input type="checkbox" class="tld-checkbox" value=".io" checked>
+                                <span>.io</span>
+                            </label>
+                            <label class="checkbox-label" style="margin: 0;">
+                                <input type="checkbox" class="tld-checkbox" value=".ai">
+                                <span>.ai</span>
+                            </label>
+                            <label class="checkbox-label" style="margin: 0;">
+                                <input type="checkbox" class="tld-checkbox" value=".co">
+                                <span>.co</span>
+                            </label>
+                            <label class="checkbox-label" style="margin: 0;">
+                                <input type="checkbox" class="tld-checkbox" value=".app">
+                                <span>.app</span>
+                            </label>
+                            <label class="checkbox-label" style="margin: 0;">
+                                <input type="checkbox" class="tld-checkbox" value=".dev">
+                                <span>.dev</span>
+                            </label>
+                            <label class="checkbox-label" style="margin: 0;">
+                                <input type="checkbox" class="tld-checkbox" value=".tech">
+                                <span>.tech</span>
+                            </label>
+                            <label class="checkbox-label" style="margin: 0;">
+                                <input type="checkbox" class="tld-checkbox" value=".online">
+                                <span>.online</span>
+                            </label>
+                            <label class="checkbox-label" style="margin: 0;">
+                                <input type="checkbox" class="tld-checkbox" value=".store">
+                                <span>.store</span>
+                            </label>
+                            <label class="checkbox-label" style="margin: 0;">
+                                <input type="checkbox" class="tld-checkbox" value=".shop">
+                                <span>.shop</span>
+                            </label>
+                            <label class="checkbox-label" style="margin: 0;">
+                                <input type="checkbox" class="tld-checkbox" value=".xyz">
+                                <span>.xyz</span>
+                            </label>
+                            <label class="checkbox-label" style="margin: 0;">
+                                <input type="checkbox" class="tld-checkbox" value=".club">
+                                <span>.club</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="useLLM">
                             <span>🤖 Use AI/LLM (Configure in Settings)</span>
                         </label>
                     </div>
                     
-                    <button class="btn btn-primary btn-large" onclick="generateDomains()">
+                    <!-- Loading Spinner -->
+                    <div id="generationProgress" style="display: none; text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); border-radius: 12px; margin-bottom: 20px;">
+                        <div style="font-size: 48px; margin-bottom: 15px;">
+                            <i class="fas fa-magic" style="color: #8b5cf6; animation: spin 2s linear infinite;"></i>
+                        </div>
+                        <h3 style="color: #8b5cf6; margin: 0 0 10px 0;">🎯 Generating Domains...</h3>
+                        <p style="color: #6b7280; margin: 0;">AI is creating creative domain names for you</p>
+                        <div style="margin-top: 15px;">
+                            <div style="height: 6px; background: rgba(139, 92, 246, 0.2); border-radius: 10px; overflow: hidden;">
+                                <div style="height: 100%; background: linear-gradient(90deg, #8b5cf6, #6366f1); border-radius: 10px; animation: progress 2s ease-in-out infinite;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary btn-large" onclick="generateDomains()" id="generateBtn">
                         <i class="fas fa-magic"></i> Generate Domains
                     </button>
                 </div>
@@ -213,7 +289,16 @@
                         <textarea id="domainInput" rows="10" placeholder="example.com\ntest.io\nawesome-domain.app"></textarea>
                     </div>
                     
-                    <button class="btn btn-primary btn-large" onclick="checkDomains()">
+                    <!-- Scanning Progress -->
+                    <div id="scanProgress" style="display: none; text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(34, 197, 94, 0.1)); border-radius: 12px; margin-bottom: 20px;">
+                        <div style="font-size: 48px; margin-bottom: 15px;">
+                            <i class="fas fa-satellite-dish" style="color: #10b981; animation: pulse 1.5s ease-in-out infinite;"></i>
+                        </div>
+                        <h3 style="color: #10b981; margin: 0 0 10px 0;">🔍 Scanning Domains...</h3>
+                        <p style="color: #6b7280; margin: 0;" id="scanProgressText">Please wait...</p>
+                    </div>
+                    
+                    <button class="btn btn-primary btn-large" onclick="checkDomains()" id="checkBtn">
                         <i class="fas fa-rocket"></i> Check Domains
                     </button>
                     
@@ -523,6 +608,24 @@
             </div>
         </main>
     </div>
+    
+    <style>
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(1.1); }
+    }
+    
+    @keyframes progress {
+        0% { width: 0%; }
+        50% { width: 70%; }
+        100% { width: 100%; }
+    }
+    </style>
     
     <script src="app.js"></script>
 </body>
