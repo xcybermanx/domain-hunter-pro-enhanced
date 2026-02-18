@@ -1,11 +1,99 @@
-// Domain Hunter Pro — Frontend JS
+// Domain Hunter Pro — Frontend JS v3.0
 const API = '/api';
-let selectedGenType = 'geo';
-let selectedGeoLocation = null;
-let geoSearchTimeout = null;
-let currentPopFilter = 0;
+let selectedGenType = 'business';
+let currentUser = null;
 
-// ── Navigation ──────────────────────────────────────────────────
+// ── Authentication ──────────────────────────────────────
+function checkAuth() {
+    fetch(`${API}/auth/me`, { credentials: 'include' })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(user => {
+            currentUser = user;
+            document.getElementById('currentUsername').textContent = user.username;
+            document.getElementById('mainApp').style.display = 'flex';
+            document.getElementById('authModal').style.display = 'none';
+            refreshStats();
+        })
+        .catch(() => {
+            document.getElementById('authModal').style.display = 'flex';
+            document.getElementById('mainApp').style.display = 'none';
+        });
+}
+
+function showLoginForm() {
+    document.getElementById('loginForm').style.display = 'block';
+    document.getElementById('registerForm').style.display = 'none';
+    document.getElementById('authModalTitle').textContent = '🔐 Welcome Back';
+}
+
+function showRegisterForm() {
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('registerForm').style.display = 'block';
+    document.getElementById('authModalTitle').textContent = '🚀 Create Your Account';
+}
+
+async function handleLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    if (!email || !password) return alert('⚠️ Please fill all fields');
+    try {
+        const res = await fetch(`${API}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('✅ Login successful!', 'success');
+            checkAuth();
+        } else {
+            alert('❌ ' + (data.error || 'Login failed'));
+        }
+    } catch (err) {
+        alert('❌ Network error: ' + err.message);
+    }
+}
+
+async function handleRegister() {
+    const username = document.getElementById('registerUsername').value.trim();
+    const email = document.getElementById('registerEmail').value.trim();
+    const password = document.getElementById('registerPassword').value;
+    if (!username || !email || !password) return alert('⚠️ Please fill all fields');
+    if (password.length < 6) return alert('⚠️ Password must be at least 6 characters');
+    try {
+        const res = await fetch(`${API}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ username, email, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('✅ Account created!', 'success');
+            checkAuth();
+        } else {
+            alert('❌ ' + (data.error || 'Registration failed'));
+        }
+    } catch (err) {
+        alert('❌ Network error: ' + err.message);
+    }
+}
+
+async function handleLogout() {
+    if (!confirm('🚪 Logout from Domain Hunter Pro?')) return;
+    try {
+        await fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'include' });
+        currentUser = null;
+        document.getElementById('authModal').style.display = 'flex';
+        document.getElementById('mainApp').style.display = 'none';
+        showToast('👋 Logged out successfully', 'info');
+    } catch (err) {
+        alert('❌ Logout error: ' + err.message);
+    }
+}
+
+// ── Navigation ──────────────────────────────────────
 function navigate(page) {
     document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -18,6 +106,8 @@ function navigate(page) {
     else if (page === 'settings')   loadConfig();
     else if (page === 'dashboard')  refreshStats();
     else if (page === 'expiring')   loadExpiring(30);
+    else if (page === 'scheduler')  loadSchedules();
+    else if (page === 'webhooks')   loadWebhooks();
     event.preventDefault();
     return false;
 }
@@ -29,246 +119,18 @@ function selectGenType(type) {
     if (el) el.classList.add('active');
 }
 
-// ── GeoNames Location Search ────────────────────────────────────
-function setPopulationFilter(minPop) {
-    currentPopFilter = minPop;
-    document.querySelectorAll('#populationFilter button').forEach(btn => {
-        btn.style.background = 'rgba(229,231,235,0.5)';
-        btn.style.color = '#6b7280';
-        btn.style.border = '1px solid #e5e7eb';
-    });
-    const activeBtn = document.querySelector(`#populationFilter button[data-pop="${minPop}"]`);
-    if (activeBtn) {
-        activeBtn.style.background = 'rgba(16,185,129,0.15)';
-        activeBtn.style.color = '#059669';
-        activeBtn.style.border = '1px solid #10b981';
-    }
-    const query = document.getElementById('geoSearchInput').value.trim();
-    if (query.length >= 2) handleGeoSearch(query);
-}
-
-function handleGeoSearch(query) {
-    clearTimeout(geoSearchTimeout);
-    if (!query || query.trim().length < 2) {
-        document.getElementById('geoSearchDropdown').style.display = 'none';
-        return;
-    }
-    geoSearchTimeout = setTimeout(() => {
-        const geoType = document.querySelector('input[name="geoType"]:checked').value;
-        searchGeoNames(query.trim(), geoType);
-    }, 400);
-}
-
-async function searchGeoNames(query, type) {
-    try {
-        let url = `${API}/geonames/search?q=${encodeURIComponent(query)}&type=${type}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data.results && data.results.length > 0) {
-            let filtered = data.results;
-            if (type === 'cities' && currentPopFilter > 0) {
-                filtered = filtered.filter(r => r.population >= currentPopFilter);
-            }
-            if (filtered.length > 0) {
-                renderGeoResults(filtered, type);
-            } else {
-                const dropdown = document.getElementById('geoSearchDropdown');
-                dropdown.innerHTML = '<div style="padding:15px;text-align:center;color:#9ca3af;">No results matching population filter</div>';
-                dropdown.style.display = 'block';
-            }
-        } else {
-            const dropdown = document.getElementById('geoSearchDropdown');
-            dropdown.innerHTML = '<div style="padding:15px;text-align:center;color:#9ca3af;">No results found</div>';
-            dropdown.style.display = 'block';
-        }
-    } catch (err) {
-        console.error('GeoNames search error:', err);
-    }
-}
-
-function renderGeoResults(results, type) {
-    const dropdown = document.getElementById('geoSearchDropdown');
-    dropdown.innerHTML = results.map(r => {
-        const safeName = r.name.replace(/'/g, "\\'");
-        const safeCountry = (r.country || '').replace(/'/g, "\\'");
-        const safeCode = (r.countryCode || '').replace(/'/g, "\\'");
-        const popText = r.population > 0 ? `👥 ${(r.population / 1000).toFixed(0)}k` : '';
-        
-        if (type === 'countries') {
-            return `<div onclick="loadCountryCities('${safeCode}', '${safeName}')" style="padding:12px 15px;cursor:pointer;border-bottom:1px solid #f3f4f6;transition:all 0.2s;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='rgba(16,185,129,0.08)'" onmouseout="this.style.background='transparent'">
-                <div>
-                    <strong style="color:#1e293b;">${r.name}</strong>
-                    <span style="color:#6b7280;font-size:13px;margin-left:8px;">🌍 ${r.countryCode}</span>
-                </div>
-                <i class="fas fa-chevron-right" style="color:#9ca3af;font-size:12px;"></i>
-            </div>`;
-        } else {
-            return `<div onclick="selectGeoLocation('${safeName}', '${safeCountry}')" style="padding:12px 15px;cursor:pointer;border-bottom:1px solid #f3f4f6;transition:all 0.2s;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='rgba(16,185,129,0.08)'" onmouseout="this.style.background='transparent'">
-                <div>
-                    <strong style="color:#1e293b;">${r.name}</strong>
-                    <span style="color:#6b7280;font-size:13px;margin-left:8px;">${r.country ? `🌍 ${r.country}` : ''}</span>
-                </div>
-                <span style="font-size:12px;color:#9ca3af;background:rgba(0,0,0,0.05);padding:3px 8px;border-radius:6px;">${popText}</span>
-            </div>`;
-        }
-    }).join('');
-    dropdown.style.display = 'block';
-}
-
-async function loadAllCountries() {
-    try {
-        const res = await fetch(`${API}/geonames/countries`);
-        const data = await res.json();
-        if (data.countries && data.countries.length > 0) {
-            const dropdown = document.getElementById('geoSearchDropdown');
-            dropdown.innerHTML = '<div style="padding:10px 15px;background:rgba(16,185,129,0.1);border-bottom:2px solid #10b981;font-weight:700;color:#059669;">🌍 All Countries (click to see cities)</div>' + 
-                data.countries.map(r => {
-                    const safeName = r.name.replace(/'/g, "\\'");
-                    const safeCode = r.countryCode.replace(/'/g, "\\'");
-                    const popText = r.population > 0 ? `👥 ${(r.population / 1000000).toFixed(1)}M` : '';
-                    return `<div onclick="loadCountryCities('${safeCode}', '${safeName}')" style="padding:12px 15px;cursor:pointer;border-bottom:1px solid #f3f4f6;transition:all 0.2s;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='rgba(16,185,129,0.08)'" onmouseout="this.style.background='transparent'">
-                        <div>
-                            <strong style="color:#1e293b;">${r.name}</strong>
-                            <span style="color:#6b7280;font-size:12px;margin-left:8px;">${r.capital || ''}</span>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <span style="font-size:12px;color:#9ca3af;background:rgba(0,0,0,0.05);padding:3px 8px;border-radius:6px;">${popText}</span>
-                            <i class="fas fa-chevron-right" style="color:#9ca3af;font-size:12px;"></i>
-                        </div>
-                    </div>`;
-                }).join('');
-            dropdown.style.display = 'block';
-        }
-    } catch (err) {
-        console.error('Load countries error:', err);
-    }
-}
-
-async function loadCountryCities(countryCode, countryName) {
-    try {
-        const res = await fetch(`${API}/geonames/cities/${countryCode}?limit=50`);
-        const data = await res.json();
-        if (data.cities && data.cities.length > 0) {
-            const dropdown = document.getElementById('geoSearchDropdown');
-            dropdown.innerHTML = `<div style="padding:10px 15px;background:rgba(16,185,129,0.1);border-bottom:2px solid #10b981;display:flex;align-items:center;justify-content:space-between;">
-                <div>
-                    <button onclick="loadAllCountries();event.stopPropagation();" style="background:none;border:none;cursor:pointer;color:#059669;font-size:14px;margin-right:10px;">
-                        <i class="fas fa-arrow-left"></i>
-                    </button>
-                    <strong style="color:#059669;">🏙️ Major Cities in ${countryName}</strong>
-                </div>
-            </div>` + 
-                data.cities.map(r => {
-                    const safeName = r.name.replace(/'/g, "\\'");
-                    const safeCountry = countryName.replace(/'/g, "\\'");
-                    const popText = r.population > 0 ? `👥 ${(r.population / 1000).toFixed(0)}k` : '';
-                    return `<div onclick="selectGeoLocation('${safeName}', '${safeCountry}')" style="padding:12px 15px;cursor:pointer;border-bottom:1px solid #f3f4f6;transition:all 0.2s;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='rgba(16,185,129,0.08)'" onmouseout="this.style.background='transparent'">
-                        <div>
-                            <strong style="color:#1e293b;">${r.name}</strong>
-                            ${r.adminName ? `<span style="color:#9ca3af;font-size:12px;margin-left:6px;">(${r.adminName})</span>` : ''}
-                        </div>
-                        <span style="font-size:12px;color:#9ca3af;background:rgba(0,0,0,0.05);padding:3px 8px;border-radius:6px;">${popText}</span>
-                    </div>`;
-                }).join('');
-            dropdown.style.display = 'block';
-        }
-    } catch (err) {
-        console.error('Load country cities error:', err);
-    }
-}
-
-function handleCountryMode() {
-    document.getElementById('geoSearchInput').value = '';
-    document.getElementById('geoSearchDropdown').style.display = 'none';
-}
-
-function selectGeoLocation(name, country) {
-    selectedGeoLocation = { name, country };
-    const badge = document.getElementById('selectedLocationBadge');
-    const text = document.getElementById('selectedLocationText');
-    text.textContent = `📍 ${name}${country ? `, ${country}` : ''}`;
-    badge.style.display = 'block';
-    document.getElementById('geoSearchInput').value = '';
-    document.getElementById('geoSearchDropdown').style.display = 'none';
-    showToast(`✅ Selected: ${name}${country ? `, ${country}` : ''}`, 'success');
-}
-
-function clearSelectedLocation() {
-    selectedGeoLocation = null;
-    document.getElementById('selectedLocationBadge').style.display = 'none';
-    document.getElementById('geoSearchInput').value = '';
-}
-
-function clearGeoSearch() {
-    document.getElementById('geoSearchInput').value = '';
-    document.getElementById('geoSearchDropdown').style.display = 'none';
-    currentPopFilter = 0;
-    setPopulationFilter(0);
-}
-
-// ── Custom TLD manager ──────────────────────────────────────────
-const customTLDs = new Set();
-
-function addCustomTLD() {
-    const input = document.getElementById('customTldInput');
-    let val = input.value.trim().toLowerCase();
-    if (!val) return;
-    if (!val.startsWith('.')) val = '.' + val;
-    if (!/^\.[a-z]{2,24}$/.test(val)) {
-        alert(`⚠️ "${val}" is not a valid TLD. Use letters only, e.g. .es, .realty, .global`);
-        return;
-    }
-    if (customTLDs.has(val)) { alert(`"${val}" is already in the list.`); return; }
-    customTLDs.add(val);
-    renderCustomTLDs();
-    input.value = '';
-    input.focus();
-}
-
-function removeCustomTLD(val) {
-    customTLDs.delete(val);
-    renderCustomTLDs();
-}
-
-function renderCustomTLDs() {
-    const container = document.getElementById('customTldList');
-    if (customTLDs.size === 0) {
-        container.innerHTML = '<span style="color:#9ca3af;font-size:13px;">No custom TLDs added yet</span>';
-        return;
-    }
-    container.innerHTML = Array.from(customTLDs).map(tld =>
-        `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,0.15);border:1px solid #818cf8;border-radius:20px;padding:4px 12px;font-size:13px;color:#6366f1;font-weight:600;">
-            ${tld}
-            <button onclick="removeCustomTLD('${tld}')" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:14px;line-height:1;padding:0;">×</button>
-        </span>`
-    ).join('');
-}
-
 document.addEventListener('DOMContentLoaded', () => {
-    const ctInput = document.getElementById('customTldInput');
-    if (ctInput) ctInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addCustomTLD(); } });
-    renderCustomTLDs();
-    refreshStats();
+    checkAuth();
     const today = new Date().toISOString().split('T')[0];
     if (document.getElementById('saleBuyDate'))  document.getElementById('saleBuyDate').value  = today;
     if (document.getElementById('saleSellDate')) document.getElementById('saleSellDate').value = today;
-    
-    // Close GeoNames dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        const dropdown = document.getElementById('geoSearchDropdown');
-        const input = document.getElementById('geoSearchInput');
-        if (dropdown && input && !input.contains(e.target) && !dropdown.contains(e.target)) {
-            dropdown.style.display = 'none';
-        }
-    });
-    
-    console.log('🎯 Domain Hunter Pro initialized');
+    console.log('🎯 Domain Hunter Pro v3.0 initialized');
 });
 
-// ── Stats ───────────────────────────────────────────────────────
+// ── Stats ─────────────────────────────────────────
 async function refreshStats() {
     try {
-        const res   = await fetch(`${API}/stats`);
+        const res   = await fetch(`${API}/stats`, { credentials: 'include' });
         const stats = await res.json();
         document.getElementById('totalScans').textContent       = stats.totalScans       || 0;
         document.getElementById('availableDomains').textContent = stats.availableDomains || 0;
@@ -281,8 +143,8 @@ async function refreshStats() {
         document.getElementById('monitorBadge').textContent     = stats.totalMonitored    || 0;
         document.getElementById('expiringBadge').textContent    = stats.expiring30        || 0;
 
-        // Load top 3 next expiring - make them clickable
-        const expRes = await fetch(`${API}/expiring?maxDays=365`);
+        // Load top 3 next expiring
+        const expRes = await fetch(`${API}/expiring?maxDays=365`, { credentials: 'include' });
         const expData = await expRes.json();
         const top3 = (expData.expiring || []).slice(0, 3);
         const container = document.getElementById('nextExpiringList');
@@ -293,7 +155,7 @@ async function refreshStats() {
                 const days = d.daysLeft !== null ? d.daysLeft : '?';
                 const expDate = d.expirationDate ? new Date(d.expirationDate).toLocaleDateString() : 'N/A';
                 const color = days <= 7 ? '#ef4444' : days <= 30 ? '#f59e0b' : '#10b981';
-                return `<div class="domain-card-clickable" onclick="document.querySelector('.menu-item[onclick*=\\"expiring\\"]').click()" style="background:linear-gradient(135deg,rgba(255,255,255,0.95),rgba(255,255,255,0.9));backdrop-filter:blur(10px);padding:20px;border-radius:16px;box-shadow:0 5px 20px rgba(0,0,0,0.1);border-left:4px solid ${color};">
+                return `<div class="domain-card-clickable" onclick="document.querySelector('.menu-item[onclick*=\\"expiring\\"]').click()" style="background:linear-gradient(135deg,rgba(255,255,255,0.95),rgba(255,255,255,0.9));backdrop-filter:blur(10px);padding:20px;border-radius:16px;box-shadow:0 5px 20px rgba(0,0,0,0.1);border-left:4px solid ${color};cursor:pointer;transition:transform 0.2s;">
                     <div style="font-size:14px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">📍 Domain</div>
                     <div style="font-size:18px;font-weight:800;color:#1e293b;margin-bottom:12px;word-break:break-all;">${d.domain}</div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -311,13 +173,13 @@ async function refreshStats() {
 }
 setInterval(refreshStats, 30000);
 
-// ── Generator ───────────────────────────────────────────────────
+// ── Generator ──────────────────────────────────────
 async function generateDomains() {
     const keywords    = document.getElementById('genKeywords').value.trim();
     const count       = parseInt(document.getElementById('genCount').value) || 20;
     const useLLM      = document.getElementById('useLLM').checked;
     const checkboxTLDs= Array.from(document.querySelectorAll('.tld-checkbox:checked')).map(c => c.value);
-    const tlds        = [...new Set([...checkboxTLDs, ...Array.from(customTLDs)])];
+    const tlds        = checkboxTLDs;
     const minLength   = parseInt(document.getElementById('minLength').value)   || 4;
     const maxLength   = parseInt(document.getElementById('maxLength').value)   || 30;
     const allowNumbers= document.getElementById('allowNumbers').checked;
@@ -325,14 +187,10 @@ async function generateDomains() {
 
     if (tlds.length === 0) { alert('⚠️ Please select at least one TLD extension'); return; }
     
-    // Build keywords array: user keywords + geo location
     let kwArray = keywords ? keywords.split(',').map(k => k.trim()).filter(Boolean) : [];
-    if (selectedGeoLocation && selectedGeoLocation.name) {
-        kwArray.push(selectedGeoLocation.name.toLowerCase());
-    }
     
     if (kwArray.length === 0) {
-        const go = confirm('⚠️ No keywords or location entered — the generator will use generic words.\nFor better results, enter a keyword like "loyer" or select a location.\n\nContinue anyway?');
+        const go = confirm('⚠️ No keywords entered — the generator will use generic words.\n\nFor better results, enter keywords like "tech, digital, agency".\n\nContinue anyway?');
         if (!go) return;
     }
 
@@ -341,17 +199,13 @@ async function generateDomains() {
     const progressText = document.getElementById('generationProgressText');
     generateBtn.disabled      = true;
     progressDiv.style.display = 'block';
-    
-    if (selectedGeoLocation) {
-        progressText.textContent = `🗺️ Generating geo-targeted domains for ${selectedGeoLocation.name}...`;
-    } else {
-        progressText.textContent = useLLM ? '🤖 Asking AI to generate domains... (may take 10-30s)' : '⚡ Building keyword-based domain names...';
-    }
+    progressText.textContent = useLLM ? '🤖 Asking AI to generate domains... (may take 10-30s)' : '⚡ Building keyword-based domain names...';
 
     try {
         const res  = await fetch(`${API}/generate-domains`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({ 
                 type: selectedGenType, 
                 keywords: kwArray.join(','), 
@@ -361,15 +215,13 @@ async function generateDomains() {
                 minLength, 
                 maxLength, 
                 allowNumbers, 
-                allowHyphens,
-                geoLocation: selectedGeoLocation 
+                allowHyphens
             })
         });
         const data = await res.json();
         if (data.domains && data.domains.length > 0) {
             document.getElementById('domainInput').value = data.domains.join('\n');
             let msg = data.usedLLM ? `🤖 AI generated ${data.count} domains!` : `⚡ Generated ${data.count} domains!`;
-            if (selectedGeoLocation) msg += ` (geo-targeted for ${selectedGeoLocation.name})`;
             alert(`${msg} Switching to Scanner...`);
             document.querySelector('.menu-item[onclick*="scanner"]').click();
         } else {
@@ -384,7 +236,7 @@ async function generateDomains() {
     }
 }
 
-// ── Scanner ─────────────────────────────────────────────────────
+// ── Scanner ───────────────────────────────────────
 async function checkDomains() {
     const input = document.getElementById('domainInput').value.trim();
     if (!input) { alert('⚠️ Please enter domains to check'); return; }
@@ -402,6 +254,7 @@ async function checkDomains() {
         const res  = await fetch(`${API}/check-domains`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({ domains })
         });
         const data = await res.json();
@@ -422,7 +275,7 @@ async function uploadFile() {
     const formData = new FormData();
     formData.append('file', file);
     try {
-        const res  = await fetch(`${API}/upload-domains`, { method: 'POST', body: formData });
+        const res  = await fetch(`${API}/upload-domains`, { method: 'POST', credentials: 'include', body: formData });
         const data = await res.json();
         if (data.domains && data.domains.length > 0) {
             alert(`✅ Loaded ${data.count} domains from file`);
@@ -477,6 +330,7 @@ async function addToMonitoring(domain) {
         const res  = await fetch(`${API}/monitoring`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({ domain })
         });
         const data = await res.json();
@@ -490,7 +344,7 @@ async function addToMonitoring(domain) {
     }
 }
 
-// ── Monitoring ──────────────────────────────────────────────────
+// ── Monitoring ────────────────────────────────────
 async function loadMonitoring() {
     try {
         const keyword   = document.getElementById('monitorKeyword')?.value   || '';
@@ -500,7 +354,7 @@ async function loadMonitoring() {
         if (keyword)   params.append('keyword',   keyword);
         if (available) params.append('available', available);
         if (registrar) params.append('registrar', registrar);
-        const res  = await fetch(`${API}/monitoring/filter?${params}`);
+        const res  = await fetch(`${API}/monitoring/filter?${params}`, { credentials: 'include' });
         const data = await res.json();
         displayMonitoring(data.monitoring || data);
     } catch {
@@ -519,7 +373,7 @@ function clearMonitorFilters() {
 async function removeAllMonitoring() {
     if (!confirm('⚠️ Remove ALL monitored domains?\n\nThis will delete all domains from monitoring. This action cannot be undone.')) return;
     try {
-        const res = await fetch(`${API}/monitoring`, { method: 'DELETE' });
+        const res = await fetch(`${API}/monitoring`, { method: 'DELETE', credentials: 'include' });
         const data = await res.json();
         if (data.success) {
             showToast(`🗑️ Removed ${data.removed} domain(s) from monitoring`, 'success');
@@ -574,7 +428,7 @@ function displayMonitoring(monitoring) {
 async function removeFromMonitoring(domain) {
     if (!confirm(`Remove "${domain}" from monitoring?`)) return;
     try {
-        const res = await fetch(`${API}/monitoring/${encodeURIComponent(domain)}`, { method: 'DELETE' });
+        const res = await fetch(`${API}/monitoring/${encodeURIComponent(domain)}`, { method: 'DELETE', credentials: 'include' });
         const data = await res.json();
         if (data.success) {
             showToast(`🗑️ "${domain}" removed from monitoring`, 'success');
@@ -586,23 +440,14 @@ async function removeFromMonitoring(domain) {
     } catch { showToast('❌ Error removing domain', 'error'); }
 }
 
-// ── Expiring Domains ────────────────────────────────────────────
+// ── Expiring Domains ────────────────────────────────
 async function loadExpiring(maxDays) {
     try {
-        const res  = await fetch(`${API}/expiring?maxDays=${maxDays}`);
+        const res  = await fetch(`${API}/expiring?maxDays=${maxDays}`, { credentials: 'include' });
         const data = await res.json();
         displayExpiring(data.expiring || []);
     } catch {
         document.getElementById('expiringResults').innerHTML = '<div class="empty-state"><p>Failed to load expiring domains</p></div>';
-    }
-}
-
-function applyExpiringFilter() {
-    const custom = parseInt(document.getElementById('customExpDays').value);
-    if (custom && custom > 0) {
-        loadExpiring(custom);
-    } else {
-        alert('⚠️ Please enter a valid number of days');
     }
 }
 
@@ -637,9 +482,284 @@ function displayExpiring(domains) {
     container.innerHTML = html;
 }
 
-// ── Portfolio ───────────────────────────────────────────────────
+// ── Scheduler ──────────────────────────────────────
+async function loadSchedules() {
+    try {
+        const res = await fetch(`${API}/schedules`, { credentials: 'include' });
+        const schedules = await res.json();
+        displaySchedules(schedules);
+    } catch {
+        document.getElementById('schedulesList').innerHTML = '<div class="empty-state"><p>Failed to load schedules</p></div>';
+    }
+}
+
+function displaySchedules(schedules) {
+    const container = document.getElementById('schedulesList');
+    if (!schedules || schedules.length === 0) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar-alt"></i><p>No schedules yet. Create one above!</p></div>';
+        return;
+    }
+    let html = '<table><thead><tr><th>Name</th><th>Cron</th><th>Domains</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+    schedules.forEach(s => {
+        const status = s.active ? '<span class="badge badge-success">✅ Active</span>' : '<span class="badge" style="background:#9ca3af">⏸️ Paused</span>';
+        const domainCount = (s.domains || []).length;
+        const safeId = s.id.replace(/'/g, "\\'");
+        html += `<tr>
+            <td><strong>${s.name}</strong></td>
+            <td><code>${s.cron}</code></td>
+            <td>${domainCount} domains</td>
+            <td>${status}</td>
+            <td>
+                <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="toggleSchedule('${safeId}')">
+                    <i class="fas fa-pause"></i> Toggle
+                </button>
+                <button class="btn" style="padding:4px 10px;font-size:12px;background:rgba(239,68,68,0.1);color:#ef4444;" onclick="deleteSchedule('${safeId}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+async function createSchedule() {
+    const name = document.getElementById('scheduleName').value.trim();
+    const cron = document.getElementById('scheduleCron').value.trim();
+    const domainsText = document.getElementById('scheduleDomains').value.trim();
+    if (!name || !cron || !domainsText) return alert('⚠️ Please fill all fields');
+    const domains = domainsText.split('\n').map(d => d.trim()).filter(Boolean);
+    try {
+        const res = await fetch(`${API}/schedules`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ name, cron, domains, active: true })
+        });
+        const data = await res.json();
+        if (data.id) {
+            showToast('✅ Schedule created!', 'success');
+            document.getElementById('scheduleName').value = '';
+            document.getElementById('scheduleCron').value = '';
+            document.getElementById('scheduleDomains').value = '';
+            loadSchedules();
+        } else {
+            alert('❌ Failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    }
+}
+
+async function toggleSchedule(id) {
+    try {
+        const res = await fetch(`${API}/schedules/${id}/toggle`, { method: 'PATCH', credentials: 'include' });
+        const data = await res.json();
+        if (data.id) {
+            showToast(data.active ? '▶️ Schedule activated' : '⏸️ Schedule paused', 'success');
+            loadSchedules();
+        }
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    }
+}
+
+async function deleteSchedule(id) {
+    if (!confirm('Delete this schedule?')) return;
+    try {
+        const res = await fetch(`${API}/schedules/${id}`, { method: 'DELETE', credentials: 'include' });
+        const data = await res.json();
+        if (data.success) {
+            showToast('🗑️ Schedule deleted', 'success');
+            loadSchedules();
+        }
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    }
+}
+
+// ── Webhooks ──────────────────────────────────────
+async function loadWebhooks() {
+    try {
+        const res = await fetch(`${API}/webhooks`, { credentials: 'include' });
+        const webhooks = await res.json();
+        displayWebhooks(webhooks);
+    } catch {
+        document.getElementById('webhooksList').innerHTML = '<div class="empty-state"><p>Failed to load webhooks</p></div>';
+    }
+}
+
+function displayWebhooks(webhooks) {
+    const container = document.getElementById('webhooksList');
+    if (!webhooks || webhooks.length === 0) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-bell"></i><p>No webhooks yet. Create one above!</p></div>';
+        return;
+    }
+    let html = '<table><thead><tr><th>Name</th><th>URL</th><th>Events</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+    webhooks.forEach(w => {
+        const status = w.active ? '<span class="badge badge-success">✅ Active</span>' : '<span class="badge" style="background:#9ca3af">⏸️ Inactive</span>';
+        const events = (w.events || []).join(', ');
+        const safeId = w.id.replace(/'/g, "\\'");
+        html += `<tr>
+            <td><strong>${w.name}</strong></td>
+            <td><small>${w.url}</small></td>
+            <td><small>${events}</small></td>
+            <td>${status}</td>
+            <td>
+                <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="testWebhook('${safeId}')">
+                    <i class="fas fa-vial"></i> Test
+                </button>
+                <button class="btn" style="padding:4px 10px;font-size:12px;background:rgba(239,68,68,0.1);color:#ef4444;" onclick="deleteWebhook('${safeId}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+async function createWebhook() {
+    const name = document.getElementById('webhookName').value.trim();
+    const url = document.getElementById('webhookUrl').value.trim();
+    const events = Array.from(document.querySelectorAll('.webhook-event:checked')).map(e => e.value);
+    if (!name || !url || events.length === 0) return alert('⚠️ Please fill all fields and select at least one event');
+    try {
+        const res = await fetch(`${API}/webhooks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ name, url, events, active: true })
+        });
+        const data = await res.json();
+        if (data.id) {
+            showToast('✅ Webhook created!', 'success');
+            document.getElementById('webhookName').value = '';
+            document.getElementById('webhookUrl').value = '';
+            document.querySelectorAll('.webhook-event').forEach(e => e.checked = false);
+            loadWebhooks();
+        } else {
+            alert('❌ Failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    }
+}
+
+async function testWebhook(id) {
+    try {
+        const res = await fetch(`${API}/webhooks/${id}/test`, { method: 'POST', credentials: 'include' });
+        const data = await res.json();
+        if (data.success) {
+            showToast('✅ Webhook test successful!', 'success');
+        } else {
+            alert('❌ Test failed: ' + (data.details || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    }
+}
+
+async function deleteWebhook(id) {
+    if (!confirm('Delete this webhook?')) return;
+    try {
+        const res = await fetch(`${API}/webhooks/${id}`, { method: 'DELETE', credentials: 'include' });
+        const data = await res.json();
+        if (data.success) {
+            showToast('🗑️ Webhook deleted', 'success');
+            loadWebhooks();
+        }
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    }
+}
+
+// ── SEO Analytics ──────────────────────────────────
+async function analyzeSEO() {
+    const domain = document.getElementById('seoDomain').value.trim();
+    if (!domain) return alert('⚠️ Please enter a domain');
+    try {
+        const res = await fetch(`${API}/seo/metrics/${encodeURIComponent(domain)}`, { credentials: 'include' });
+        const data = await res.json();
+        const container = document.getElementById('seoResults');
+        if (data.error) {
+            container.innerHTML = `<div class="alert" style="background:rgba(239,68,68,0.1);border-left:4px solid #ef4444;">❌ ${data.error}</div>`;
+        } else {
+            container.innerHTML = `
+                <div class="stats-grid" style="margin-top:20px;">
+                    <div class="stat-card gradient-purple">
+                        <div class="stat-icon"><i class="fas fa-trophy"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value">${data.da || 'N/A'}</div>
+                            <div class="stat-label">Domain Authority</div>
+                        </div>
+                    </div>
+                    <div class="stat-card gradient-green">
+                        <div class="stat-icon"><i class="fas fa-star"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value">${data.pa || 'N/A'}</div>
+                            <div class="stat-label">Page Authority</div>
+                        </div>
+                    </div>
+                    <div class="stat-card gradient-gold">
+                        <div class="stat-icon"><i class="fas fa-link"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value">${data.backlinks || 'N/A'}</div>
+                            <div class="stat-label">Backlinks</div>
+                        </div>
+                    </div>
+                    <div class="stat-card gradient-red">
+                        <div class="stat-icon"><i class="fas fa-globe"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value">${data.refDomains || 'N/A'}</div>
+                            <div class="stat-label">Referring Domains</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    }
+}
+
+async function analyzeCompetitors() {
+    const text = document.getElementById('competitorDomains').value.trim();
+    if (!text) return alert('⚠️ Please enter competitor domains');
+    const domains = text.split('\n').map(d => d.trim()).filter(Boolean);
+    try {
+        const res = await fetch(`${API}/seo/competitor-analysis`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ domains })
+        });
+        const data = await res.json();
+        const container = document.getElementById('competitorResults');
+        if (data.results && data.results.length > 0) {
+            let html = '<table><thead><tr><th>Domain</th><th>DA</th><th>PA</th><th>Backlinks</th><th>Ref Domains</th></tr></thead><tbody>';
+            data.results.forEach(r => {
+                html += `<tr>
+                    <td><strong>${r.domain}</strong></td>
+                    <td>${r.da || 'N/A'}</td>
+                    <td>${r.pa || 'N/A'}</td>
+                    <td>${r.backlinks || 'N/A'}</td>
+                    <td>${r.refDomains || 'N/A'}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = '<div class="empty-state"><p>No results</p></div>';
+        }
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    }
+}
+
+// ── Portfolio ──────────────────────────────────────
 async function loadPortfolio() {
-    try { const res = await fetch(`${API}/portfolio`); displayPortfolio(await res.json()); } catch {}
+    try { const res = await fetch(`${API}/portfolio`, { credentials: 'include' }); displayPortfolio(await res.json()); } catch {}
 }
 
 function displayPortfolio(portfolio) {
@@ -679,7 +799,7 @@ async function addToPortfolio() {
     const notes     = document.getElementById('portfolioNotes').value.trim();
     if (!domain || !price) { alert('⚠️ Please fill domain and price'); return; }
     try {
-        await fetch(`${API}/portfolio`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ domain, price, registrar, notes }) });
+        await fetch(`${API}/portfolio`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ domain, price, registrar, notes }) });
         ['portfolioDomain','portfolioPrice','portfolioRegistrar','portfolioNotes'].forEach(id => document.getElementById(id).value = '');
         showToast('✅ Added to portfolio!', 'success');
         loadPortfolio();
@@ -689,7 +809,7 @@ async function addToPortfolio() {
 async function removeFromPortfolio(id) {
     if (!confirm('Remove this domain from portfolio?')) return;
     try {
-        const res  = await fetch(`${API}/portfolio/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        const res  = await fetch(`${API}/portfolio/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
         const data = await res.json();
         if (data.success) {
             showToast(`🗑️ Removed from portfolio`, 'success');
@@ -701,7 +821,7 @@ async function removeFromPortfolio(id) {
     } catch { showToast('❌ Error removing from portfolio', 'error'); }
 }
 
-// ── Sales / Profit ──────────────────────────────────────────────
+// ── Sales / Profit ──────────────────────────────────
 async function addSale() {
     const domain    = document.getElementById('saleDomain').value.trim();
     const buyPrice  = parseFloat(document.getElementById('saleBuyPrice').value);
@@ -711,7 +831,7 @@ async function addSale() {
     const notes     = document.getElementById('saleNotes').value.trim();
     if (!domain || !buyPrice || !sellPrice) { alert('⚠️ Please fill domain, buy price, and sell price'); return; }
     try {
-        await fetch(`${API}/sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ domain, buyPrice, sellPrice, buyDate, sellDate, notes }) });
+        await fetch(`${API}/sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ domain, buyPrice, sellPrice, buyDate, sellDate, notes }) });
         ['saleDomain','saleBuyPrice','saleSellPrice','saleNotes'].forEach(id => document.getElementById(id).value = '');
         showToast('✅ Sale added!', 'success');
         loadSales();
@@ -719,7 +839,7 @@ async function addSale() {
     } catch { alert('❌ Error adding sale'); }
 }
 async function loadSales() {
-    try { const res = await fetch(`${API}/sales`); displaySales(await res.json()); } catch {}
+    try { const res = await fetch(`${API}/sales`, { credentials: 'include' }); displaySales(await res.json()); } catch {}
 }
 function displaySales(sales) {
     const container = document.getElementById('salesList');
@@ -741,7 +861,7 @@ async function loadProfitAnalytics(period) {
             document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
             event.currentTarget.classList.add('active');
         }
-        const res  = await fetch(`${API}/analytics/profit?period=${period}`);
+        const res  = await fetch(`${API}/analytics/profit?period=${period}`, { credentials: 'include' });
         const data = await res.json();
         document.getElementById('profitAnalytics').innerHTML = `
             <div class="profit-cards">
@@ -753,10 +873,10 @@ async function loadProfitAnalytics(period) {
     } catch {}
 }
 
-// ── Config / Settings ───────────────────────────────────────────
+// ── Config / Settings ────────────────────────────────
 async function loadConfig() {
     try {
-        const res    = await fetch(`${API}/config`);
+        const res    = await fetch(`${API}/config`, { credentials: 'include' });
         const config = await res.json();
         document.getElementById('llmProvider').value = config.llm?.provider || 'local';
         updateLLMProvider();
@@ -770,6 +890,11 @@ async function loadConfig() {
             const k = document.getElementById(`${p}Key`);     if (k) k.value   = cfg.apiKey  || '';
             const m = document.getElementById(`${p}Model`);   if (m && cfg.model) m.value = cfg.model;
         });
+        // Load SEO config
+        const seo = config.seo || {};
+        if (document.getElementById('mozApiKey'))     document.getElementById('mozApiKey').value     = seo.mozApiKey     || '';
+        if (document.getElementById('mozApiSecret'))  document.getElementById('mozApiSecret').value  = seo.mozApiSecret  || '';
+        if (document.getElementById('ahrefsApiKey'))  document.getElementById('ahrefsApiKey').value  = seo.ahrefsApiKey  || '';
     } catch (err) { console.error('Load config error:', err); }
 }
 function updateLLMProvider() {
@@ -790,8 +915,25 @@ async function saveConfig() {
             grok:       { enabled: document.getElementById('grokEnabled').checked,       apiKey: document.getElementById('grokKey').value,        model: document.getElementById('grokModel').value }
         }
     };
-    try { await fetch(`${API}/config`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(cfg) }); showToast('✅ Config saved!', 'success'); } catch { alert('❌ Save failed'); }
+    try { await fetch(`${API}/config`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(cfg) }); showToast('✅ LLM Config saved!', 'success'); } catch { alert('❌ Save failed'); }
 }
+
+async function saveSEOConfig() {
+    const res = await fetch(`${API}/config`, { credentials: 'include' });
+    const config = await res.json();
+    config.seo = {
+        mozApiKey: document.getElementById('mozApiKey').value.trim(),
+        mozApiSecret: document.getElementById('mozApiSecret').value.trim(),
+        ahrefsApiKey: document.getElementById('ahrefsApiKey').value.trim()
+    };
+    try { 
+        await fetch(`${API}/config`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(config) }); 
+        showToast('✅ SEO Config saved!', 'success'); 
+    } catch { 
+        alert('❌ Save failed'); 
+    }
+}
+
 async function testConnection(provider) {
     const resultDiv = document.getElementById('connectionTestResult');
     resultDiv.style.display = 'block';
@@ -803,7 +945,7 @@ async function testConnection(provider) {
         else if (provider === 'claude')     config = { provider, apiKey: document.getElementById('claudeKey').value,      model: document.getElementById('claudeModel').value };
         else if (provider === 'perplexity') config = { provider, apiKey: document.getElementById('perplexityKey').value,  model: document.getElementById('perplexityModel').value };
         else if (provider === 'grok')       config = { provider, apiKey: document.getElementById('grokKey').value,        model: document.getElementById('grokModel').value };
-        const res  = await fetch(`${API}/test-llm-connection`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(config) });
+        const res  = await fetch(`${API}/test-llm-connection`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(config) });
         const data = await res.json();
         if (data.success) {
             resultDiv.innerHTML = `<div style="padding:12px;background:rgba(16,185,129,0.1);border-left:4px solid #10b981;border-radius:8px;"><strong style="color:#10b981;">✅ Connected!</strong> ${data.message}${data.latency ? ` (${data.latency}ms)` : ''}</div>`;
@@ -816,7 +958,7 @@ async function testConnection(provider) {
     }
 }
 
-// ── Toast notification ──────────────────────────────────────────
+// ── Toast notification ────────────────────────────────
 function showToast(message, type = 'success') {
     const existing = document.getElementById('toast-notification');
     if (existing) existing.remove();
