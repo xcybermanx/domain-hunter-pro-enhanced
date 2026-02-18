@@ -133,9 +133,10 @@ madridpro.io`;
             const r = await axios.post('https://api.x.ai/v1/chat/completions', { model: providerCfg.model || 'grok-1', messages: [{ role: 'user', content: prompt }], max_tokens: 800 }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
             responseText = r.data?.choices?.[0]?.message?.content || '';
         }
+        // FIXED regex: now allows dots in domain name part (for subdomains) + hyphens
         const lines = responseText.split(/\n/)
             .map(l => l.trim().toLowerCase().replace(/^[\d.\-)\s]+/, ''))
-            .filter(l => /^[a-z0-9][a-z0-9-]*\.[a-z]{2,}$/.test(l));
+            .filter(l => /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(l));
         if (lines.length >= 3) return lines;
     } catch (err) {
         console.error('LLM generation failed, falling back to smart generator:', err.message);
@@ -144,7 +145,7 @@ madridpro.io`;
 }
 
 // ── Smart keyword-aware generator (no-LLM fallback) ──────────────
-function generateSmart(keywords, type, count, tlds, minLen, maxLen, allowNumbers) {
+function generateSmart(keywords, type, count, tlds, minLen, maxLen, allowNumbers, allowHyphens) {
     const domains = new Set();
     let attempts  = 0;
     const maxAttempts = Math.max(count * 30, 500);
@@ -174,6 +175,7 @@ function generateSmart(keywords, type, count, tlds, minLen, maxLen, allowNumbers
             name = name.toLowerCase().replace(/[^a-z0-9-]/g, '');
         }
         if (!allowNumbers) name = name.replace(/[0-9]/g, '');
+        if (!allowHyphens)  name = name.replace(/-/g, '');
         if (name.length < minLen || name.length > maxLen) continue;
         if (name.startsWith('-') || name.endsWith('-')) continue;
         const tld = tlds[Math.floor(Math.random() * tlds.length)];
@@ -270,7 +272,6 @@ async function checkDomainInfo(domain) {
 
 // ── API ROUTES ───────────────────────────────────────────────────
 
-// Single domain check
 app.post('/api/check-domain', async (req, res) => {
     const { domain } = req.body;
     if (!domain) return res.status(400).json({ error: 'Domain required' });
@@ -284,7 +285,6 @@ app.post('/api/check-domain', async (req, res) => {
     res.json(result);
 });
 
-// Bulk domain check
 app.post('/api/check-domains', async (req, res) => {
     const { domains } = req.body;
     if (!domains || !Array.isArray(domains)) return res.status(400).json({ error: 'Domains array required' });
@@ -310,12 +310,13 @@ app.post('/api/check-domains', async (req, res) => {
 
 // AI Domain Generator
 app.post('/api/generate-domains', async (req, res) => {
-    const { type, keywords, count, useLLM, tlds, minLength, maxLength, allowNumbers } = req.body;
+    const { type, keywords, count, useLLM, tlds, minLength, maxLength, allowNumbers, allowHyphens } = req.body;
     const targetCount  = Math.min(parseInt(count) || 20, 100);
     const selectedTLDs = (tlds && tlds.length > 0) ? tlds : ['.com', '.net', '.org', '.io'];
     const minLen       = Math.max(parseInt(minLength) || 4, 2);
     const maxLen       = Math.min(parseInt(maxLength) || 30, 63);
     const withNumbers  = allowNumbers !== false;
+    const withHyphens  = allowHyphens !== false;
     let kwArray = [];
     if (Array.isArray(keywords)) {
         kwArray = keywords.map(k => k.trim().toLowerCase()).filter(Boolean);
@@ -330,6 +331,7 @@ app.post('/api/generate-domains', async (req, res) => {
             domains = llmResult.filter(d => {
                 const namePart = d.split('.')[0];
                 if (!withNumbers && /[0-9]/.test(namePart)) return false;
+                if (!withHyphens && /-/.test(namePart)) return false;
                 if (namePart.length < minLen || namePart.length > maxLen) return false;
                 return true;
             }).slice(0, targetCount);
@@ -340,13 +342,12 @@ app.post('/api/generate-domains', async (req, res) => {
     }
     if (domains.length < targetCount) {
         const remaining    = targetCount - domains.length;
-        const smartDomains = generateSmart(kwArray, type, remaining, selectedTLDs, minLen, maxLen, withNumbers);
+        const smartDomains = generateSmart(kwArray, type, remaining, selectedTLDs, minLen, maxLen, withNumbers, withHyphens);
         domains = [...new Set([...domains, ...smartDomains])].slice(0, targetCount);
     }
     res.json({ domains, count: domains.length, usedLLM: useLLM && domains.length > 0 });
 });
 
-// File upload
 app.post('/api/upload-domains', upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const content = fs.readFileSync(req.file.path, 'utf8');
@@ -357,7 +358,6 @@ app.post('/api/upload-domains', upload.single('file'), (req, res) => {
     res.json({ domains, count: domains.length });
 });
 
-// Stats
 app.get('/api/stats', (req, res) => {
     const db        = readDB();
     const domains   = Object.values(db.cache || {});
@@ -368,10 +368,12 @@ app.get('/api/stats', (req, res) => {
     const totalInvested  = totalCostSales + portfolio.reduce((s, x) => s + (parseFloat(x.price) || 0), 0);
     const totalProfit    = totalRevenue - totalCostSales;
     const totalROI       = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
+    const expiring30     = domains.filter(d => d.daysLeft !== null && d.daysLeft >= 0 && d.daysLeft <= 30).length;
     res.json({
         totalScans:       db.stats?.totalScans || domains.length,
         availableDomains: domains.filter(d => d.available === true).length,
         expiring7:        domains.filter(d => d.daysLeft !== null && d.daysLeft >= 0 && d.daysLeft <= 7).length,
+        expiring30,
         premiumDomains:   domains.filter(d => d.premium).length,
         totalMonitored:   domains.length,
         totalProfit, totalRevenue, totalInvested, totalROI
@@ -380,7 +382,6 @@ app.get('/api/stats', (req, res) => {
 
 // ── Monitoring routes ────────────────────────────────────────────
 
-// Filter / list monitored domains
 app.get('/api/monitoring/filter', (req, res) => {
     const db = readDB();
     let monitoring = Object.values(db.cache || {});
@@ -392,24 +393,20 @@ app.get('/api/monitoring/filter', (req, res) => {
     res.json({ monitoring, count: monitoring.length });
 });
 
-// Manually add a domain to monitoring (stores in cache with basic DNS check)
 app.post('/api/monitoring', async (req, res) => {
     const { domain } = req.body;
     if (!domain) return res.status(400).json({ error: 'Domain required' });
     const key = domain.toLowerCase().trim();
     const db  = readDB();
     if (db.cache[key]) {
-        // Already exists — just return it
         return res.json({ success: true, domain: db.cache[key], alreadyExists: true });
     }
-    // Do a quick check and store it
     const result = await checkDomainInfo(key);
     db.cache[key] = result;
     writeDB(db);
     res.json({ success: true, domain: result });
 });
 
-// Remove a domain from monitoring
 app.delete('/api/monitoring/:domain', (req, res) => {
     const key = req.params.domain.toLowerCase();
     const db  = readDB();
@@ -417,6 +414,16 @@ app.delete('/api/monitoring/:domain', (req, res) => {
     delete db.cache[key];
     writeDB(db);
     res.json({ success: true, removed: key });
+});
+
+// New: Expiring domains endpoint
+app.get('/api/expiring', (req, res) => {
+    const maxDays = parseInt(req.query.maxDays) || 30;
+    const db = readDB();
+    let expiring = Object.values(db.cache || {})
+        .filter(d => d.daysLeft !== null && d.daysLeft !== undefined && d.daysLeft >= 0 && d.daysLeft <= maxDays)
+        .sort((a, b) => (a.daysLeft || 999) - (b.daysLeft || 999));
+    res.json({ expiring, count: expiring.length });
 });
 
 // ── Portfolio routes ─────────────────────────────────────────────
@@ -431,7 +438,6 @@ app.post('/api/portfolio', (req, res) => {
     res.json(item);
 });
 
-// Remove a portfolio item by id
 app.delete('/api/portfolio/:id', (req, res) => {
     const db  = readDB();
     const idx = db.portfolio.findIndex(p => p.id === req.params.id);
