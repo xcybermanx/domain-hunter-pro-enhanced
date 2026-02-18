@@ -50,13 +50,42 @@ const DEFAULT_CONFIG = {
         grok:        { enabled: false, apiKey: '', model: 'grok-beta' }
     }
 };
+
+// Auto-migrate old Perplexity model names to new 2026 format
+function migrateConfig(config) {
+    let migrated = false;
+    if (config.llm?.perplexity?.model) {
+        const oldModel = config.llm.perplexity.model;
+        // Map old llama-3.1-sonar-*-online models to new 'sonar' model
+        if (oldModel.includes('llama-3.1-sonar') || oldModel.includes('-online')) {
+            console.log(`🔄 Migrating Perplexity model: ${oldModel} → sonar`);
+            config.llm.perplexity.model = 'sonar';
+            migrated = true;
+        }
+    }
+    if (migrated) {
+        writeConfig(config);
+        console.log('✅ Config migrated successfully');
+    }
+    return config;
+}
+
 function readConfig() {
-    try { return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); }
+    try { 
+        const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); 
+        return migrateConfig(config);
+    }
     catch { return DEFAULT_CONFIG; }
 }
 function writeConfig(cfg) {
     try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2)); }
     catch (e) { console.error('Config write error:', e.message); }
+}
+
+// Run migration on startup
+if (fs.existsSync(CONFIG_FILE)) {
+    console.log('🔍 Checking for config migrations...');
+    readConfig();
 }
 
 // ── RDAP / WHOIS constants ───────────────────────────────────────
