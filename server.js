@@ -8,19 +8,14 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Multer configuration
 const upload = multer({ dest: 'uploads/' });
-
-// Middleware
 app.use(express.json());
 app.use(express.static('public'));
 
-// Database & config files
-const DB_FILE = path.join(__dirname, 'data', 'domains.json');
+const DB_FILE     = path.join(__dirname, 'data', 'domains.json');
 const CONFIG_FILE = path.join(__dirname, 'data', 'config.json');
 
-// Ensure directories exist
-if (!fs.existsSync(path.join(__dirname, 'data'))) fs.mkdirSync(path.join(__dirname, 'data'));
+if (!fs.existsSync(path.join(__dirname, 'data')))    fs.mkdirSync(path.join(__dirname, 'data'));
 if (!fs.existsSync(path.join(__dirname, 'uploads'))) fs.mkdirSync(path.join(__dirname, 'uploads'));
 
 // ── DB helpers ──────────────────────────────────────────────────
@@ -33,40 +28,35 @@ function initDB() {
         console.log('✅ Database initialized');
     }
 }
-
 function readDB() {
     try { return JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); }
     catch { return { domains: [], watchlist: [], portfolio: [], sales: [], cache: {}, stats: {} }; }
 }
-
 function writeDB(data) {
     try { fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2)); }
     catch (e) { console.error('DB write error:', e.message); }
 }
+initDB();
 
 // ── Config helpers ───────────────────────────────────────────────
 const DEFAULT_CONFIG = {
     llm: {
         provider: 'local',
-        local: { enabled: false, model: 'qwen2.5:3b', endpoint: 'http://localhost:11434/api/generate' },
-        openai: { enabled: false, apiKey: '', model: 'gpt-3.5-turbo' },
-        claude: { enabled: false, apiKey: '', model: 'claude-3-haiku' },
-        perplexity: { enabled: false, apiKey: '', model: 'llama-3.1-sonar-small-128k-online' },
-        grok: { enabled: false, apiKey: '', model: 'grok-1' }
+        local:       { enabled: false, model: 'qwen2.5:3b', endpoint: 'http://localhost:11434/api/generate' },
+        openai:      { enabled: false, apiKey: '', model: 'gpt-3.5-turbo' },
+        claude:      { enabled: false, apiKey: '', model: 'claude-3-haiku' },
+        perplexity:  { enabled: false, apiKey: '', model: 'llama-3.1-sonar-small-128k-online' },
+        grok:        { enabled: false, apiKey: '', model: 'grok-1' }
     }
 };
-
 function readConfig() {
     try { return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); }
     catch { return DEFAULT_CONFIG; }
 }
-
 function writeConfig(cfg) {
     try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2)); }
     catch (e) { console.error('Config write error:', e.message); }
 }
-
-initDB();
 
 // ── RDAP / WHOIS constants ───────────────────────────────────────
 const RDAP_SERVERS = {
@@ -75,7 +65,7 @@ const RDAP_SERVERS = {
     'org': 'https://rdap.publicinterestregistry.org/v1/domain/',
     'dev': 'https://pubapi.registry.google/rdap/domain/',
     'app': 'https://pubapi.registry.google/rdap/domain/',
-    'page': 'https://pubapi.registry.google/rdap/domain/',
+    'page':'https://pubapi.registry.google/rdap/domain/',
     'io':  'https://rdap.nic.io/v1/domain/',
     'co':  'https://rdap.nic.co/v1/domain/',
     'uk':  'https://rdap.nominet.uk/domain/',
@@ -89,18 +79,157 @@ const RDAP_SERVERS = {
     'ai':  'https://rdap.nic.ai/v1/domain/',
 };
 
-// ── Generator constants ──────────────────────────────────────────
-const CITIES    = ['new','san','los','miami','tokyo','paris','london','berlin','madrid','rome'];
-const COUNTRIES = ['usa','uk','japan','france','spain','italy','canada','germany'];
-const PREFIXES  = ['best','top','pro','my','get','go','the'];
-const KEYWORDS  = ['web','tech','digital','shop','market','hub','zone','app','cloud','online'];
+// ── Smart generator word banks ───────────────────────────────────
+// These are only used when the user gives NO keywords (fallback)
+const FALLBACK_GEO_WORDS   = ['properties','realty','homes','rentals','living','stays','guide','tours','eats','market','hub','zone','digital','tech','shop','agency','group','media','services','solutions'];
+const FALLBACK_BIZ_WORDS   = ['pro','hub','zone','digital','tech','shop','market','cloud','app','online','agency','group','media','solutions','services','studio','labs','works','HQ','desk'];
+const GEO_SUFFIXES         = ['properties','realty','homes','rentals','living','stays','guide','tours','eats','market','hub','zone','agency','group','services','digital','media','studio','solutions','invest','capital','ventures','network','connect','links','city','place','spot'];
+const BIZ_PREFIXES         = ['best','top','pro','my','get','go','the','smart','fast','easy','real','true','next','open','peak','core','bold','nova','apex','flux'];
+const BIZ_INDUSTRY_WORDS   = ['tech','digital','shop','market','hub','zone','app','cloud','online','agency','media','studio','labs','works','desk','link','base','point','gate','space','mind','brand','scale','shift','flow','forge','pulse','spark','rise','edge'];
+
+// ── LLM-powered generator ────────────────────────────────────────
+async function generateWithLLM(keywords, type, count, tlds) {
+    const config = readConfig();
+    const llmCfg = config.llm || {};
+    const provider = llmCfg.provider || 'local';
+    const providerCfg = llmCfg[provider] || {};
+
+    const tldList = tlds.join(', ');
+    const kwStr   = keywords.length > 0 ? keywords.join(', ') : 'general business';
+    const style   = type === 'geo'
+        ? 'geographic/location-based domain names (city + industry style)'
+        : type === 'business'
+            ? 'creative business domain names (professional, brandable)'
+            : 'a mix of geographic and creative business domain names';
+
+    const prompt = `Generate exactly ${count} unique, creative, and brandable domain names.
+
+Requirements:
+- Keywords to focus on: ${kwStr}
+- Style: ${style}
+- Use these TLD extensions: ${tldList}
+- Each domain must be unique, memorable, and professional
+- Incorporate the keywords naturally into the domain names
+- Mix different patterns: keyword+word, word+keyword, abbreviations, creative combinations
+- NO generic random combinations — every domain should feel intentional and marketable
+
+Output ONLY a plain list of domains, one per line, no numbering, no explanation, no extra text.
+Example format:
+madridrealty.com
+propertiesmadrid.es
+madridpro.io`;
+
+    try {
+        let responseText = '';
+
+        if (provider === 'local') {
+            const endpoint = providerCfg.endpoint || 'http://localhost:11434/api/generate';
+            const model    = providerCfg.model    || 'qwen2.5:3b';
+            const r = await axios.post(endpoint, { model, prompt, stream: false }, { timeout: 60000 });
+            responseText = r.data?.response || '';
+        } else if (provider === 'openai') {
+            const r = await axios.post('https://api.openai.com/v1/chat/completions', {
+                model: providerCfg.model || 'gpt-3.5-turbo',
+                messages: [{ role: 'user', content: prompt }],
+                max_tokens: 800, temperature: 0.8
+            }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
+            responseText = r.data?.choices?.[0]?.message?.content || '';
+        } else if (provider === 'claude') {
+            const r = await axios.post('https://api.anthropic.com/v1/messages', {
+                model: providerCfg.model || 'claude-3-haiku',
+                max_tokens: 800,
+                messages: [{ role: 'user', content: prompt }]
+            }, { headers: { 'x-api-key': providerCfg.apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, timeout: 60000 });
+            responseText = r.data?.content?.[0]?.text || '';
+        } else if (provider === 'perplexity') {
+            const r = await axios.post('https://api.perplexity.ai/chat/completions', {
+                model: providerCfg.model || 'llama-3.1-sonar-small-128k-online',
+                messages: [{ role: 'user', content: prompt }],
+                max_tokens: 800
+            }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
+            responseText = r.data?.choices?.[0]?.message?.content || '';
+        } else if (provider === 'grok') {
+            const r = await axios.post('https://api.x.ai/v1/chat/completions', {
+                model: providerCfg.model || 'grok-1',
+                messages: [{ role: 'user', content: prompt }],
+                max_tokens: 800
+            }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
+            responseText = r.data?.choices?.[0]?.message?.content || '';
+        }
+
+        // Parse response: extract lines that look like domains
+        const lines = responseText.split(/\n/)
+            .map(l => l.trim().toLowerCase().replace(/^[\d.\-)\s]+/, ''))
+            .filter(l => /^[a-z0-9][a-z0-9-]*\.[a-z]{2,}$/.test(l));
+
+        if (lines.length >= 3) return lines;
+    } catch (err) {
+        console.error('LLM generation failed, falling back to smart generator:', err.message);
+    }
+    return null; // fallback to smart generator
+}
+
+// ── Smart keyword-aware generator (no-LLM fallback) ──────────────
+function generateSmart(keywords, type, count, tlds, minLen, maxLen, allowNumbers) {
+    const domains  = new Set();
+    let attempts   = 0;
+    const maxAttempts = Math.max(count * 30, 500);
+
+    // If user provided keywords, use them as the core building blocks
+    const userKWs = keywords.length > 0 ? keywords : null;
+
+    while (domains.size < count && attempts < maxAttempts) {
+        attempts++;
+        let name = '';
+
+        if (type === 'geo' || (type === 'mixed' && Math.random() > 0.5)) {
+            // Geo mode: keyword is the location anchor
+            const kw     = userKWs
+                ? userKWs[Math.floor(Math.random() * userKWs.length)]
+                : FALLBACK_GEO_WORDS[Math.floor(Math.random() * FALLBACK_GEO_WORDS.length)];
+            const suffix = GEO_SUFFIXES[Math.floor(Math.random() * GEO_SUFFIXES.length)];
+
+            const pattern = Math.floor(Math.random() * 4);
+            if (pattern === 0) name = kw + suffix;                           // madridrealty
+            else if (pattern === 1) name = suffix + kw;                     // realtymadrid
+            else if (pattern === 2) name = kw + '-' + suffix;               // madrid-realty
+            else                    name = kw + suffix.charAt(0).toUpperCase() + suffix.slice(1); // madridRealty → lowercase below
+            name = name.toLowerCase().replace(/[^a-z0-9-]/g, '');
+
+        } else {
+            // Business mode: keyword is the brand anchor
+            const kw     = userKWs
+                ? userKWs[Math.floor(Math.random() * userKWs.length)]
+                : FALLBACK_BIZ_WORDS[Math.floor(Math.random() * FALLBACK_BIZ_WORDS.length)];
+            const word   = BIZ_INDUSTRY_WORDS[Math.floor(Math.random() * BIZ_INDUSTRY_WORDS.length)];
+            const prefix = BIZ_PREFIXES[Math.floor(Math.random() * BIZ_PREFIXES.length)];
+
+            const pattern = Math.floor(Math.random() * 5);
+            if (pattern === 0) name = kw + word;                // madridtech
+            else if (pattern === 1) name = prefix + kw;         // getmadrid
+            else if (pattern === 2) name = kw + '-' + word;     // madrid-tech
+            else if (pattern === 3) name = word + kw;           // techMadrid → lowercase
+            else                    name = prefix + kw + word;  // getmadridtech
+            name = name.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        }
+
+        if (!allowNumbers) name = name.replace(/[0-9]/g, '');
+        if (name.length < minLen || name.length > maxLen) continue;
+        // must not start/end with hyphen
+        if (name.startsWith('-') || name.endsWith('-')) continue;
+
+        const tld = tlds[Math.floor(Math.random() * tlds.length)];
+        domains.add(name + tld);
+    }
+
+    return Array.from(domains);
+}
 
 // ── Domain info helpers ──────────────────────────────────────────
 function getTLD(domain) {
     const parts = domain.split('.');
     return parts.length >= 2 ? parts[parts.length - 1] : '';
 }
-
 function extractRegistrar(rdapData) {
     if (rdapData.entities) {
         for (const entity of rdapData.entities) {
@@ -115,42 +244,31 @@ function extractRegistrar(rdapData) {
     }
     return 'Unknown';
 }
-
 async function fetchViaRDAP(domain) {
     const tld = getTLD(domain);
-    // Try TLD-specific RDAP
     if (RDAP_SERVERS[tld]) {
         try {
-            const url = `${RDAP_SERVERS[tld]}${domain}`;
-            const response = await axios.get(url, { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' } });
+            const response = await axios.get(`${RDAP_SERVERS[tld]}${domain}`, { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' } });
             if (response.status === 200 && response.data.events) {
                 for (const event of response.data.events) {
                     if (event.eventAction === 'expiration' || event.eventAction === 'expiry') {
-                        if (event.eventDate) {
-                            return { expirationDate: new Date(event.eventDate), registrar: extractRegistrar(response.data), method: 'rdap' };
-                        }
+                        if (event.eventDate) return { expirationDate: new Date(event.eventDate), registrar: extractRegistrar(response.data), method: 'rdap' };
                     }
                 }
-                if (response.data.expirationDate) {
-                    return { expirationDate: new Date(response.data.expirationDate), registrar: extractRegistrar(response.data), method: 'rdap' };
-                }
+                if (response.data.expirationDate) return { expirationDate: new Date(response.data.expirationDate), registrar: extractRegistrar(response.data), method: 'rdap' };
             }
         } catch { /* fallthrough */ }
     }
-    // Generic RDAP fallback
     try {
         const response = await axios.get(`https://rdap.org/domain/${domain}`, { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' } });
         if (response.status === 200 && response.data.events) {
             for (const event of response.data.events) {
-                if (event.eventAction === 'expiration') {
-                    return { expirationDate: new Date(event.eventDate), registrar: extractRegistrar(response.data), method: 'rdap' };
-                }
+                if (event.eventAction === 'expiration') return { expirationDate: new Date(event.eventDate), registrar: extractRegistrar(response.data), method: 'rdap' };
             }
         }
     } catch { /* fallthrough */ }
     return null;
 }
-
 async function fetchViaWHOIS(domain) {
     const apis = [
         `https://www.whoisxmlapi.com/whoisserver/WhoisService?apiKey=at_FREE&domainName=${domain}&outputFormat=JSON`,
@@ -175,7 +293,6 @@ async function fetchViaWHOIS(domain) {
     }
     return null;
 }
-
 async function checkDomainInfo(domain) {
     try {
         let result = await fetchViaRDAP(domain);
@@ -196,11 +313,10 @@ async function checkDomainInfo(domain) {
 
 // ── API ROUTES ───────────────────────────────────────────────────
 
-// Check single domain
 app.post('/api/check-domain', async (req, res) => {
     const { domain } = req.body;
     if (!domain) return res.status(400).json({ error: 'Domain required' });
-    const db = readDB();
+    const db  = readDB();
     const key = domain.toLowerCase();
     if (db.cache[key] && (Date.now() - db.cache[key].lastChecked < 86400000)) return res.json(db.cache[key]);
     const result = await checkDomainInfo(domain);
@@ -210,7 +326,6 @@ app.post('/api/check-domain', async (req, res) => {
     res.json(result);
 });
 
-// Check multiple domains (FIX #1 — was missing, frontend called /api/check-bulk)
 app.post('/api/check-domains', async (req, res) => {
     const { domains } = req.body;
     if (!domains || !Array.isArray(domains)) return res.status(400).json({ error: 'Domains array required' });
@@ -228,57 +343,60 @@ app.post('/api/check-domains', async (req, res) => {
             await new Promise(r => setTimeout(r, 500));
         }
     }
-    db.stats.totalScans = (db.stats.totalScans || 0) + domains.length;
+    db.stats.totalScans    = (db.stats.totalScans || 0) + domains.length;
     db.stats.availableDomains = Object.values(db.cache).filter(d => d.available === true).length;
     writeDB(db);
     res.json({ results, count: results.length });
 });
 
-// ✅ FIX #5 + #6 — Generator with minLength, maxLength, allowNumbers + infinite-loop guard
-app.post('/api/generate-domains', (req, res) => {
-    const { type, keywords, count, tlds, minLength, maxLength, allowNumbers } = req.body;
-    const targetCount = Math.min(count || 20, 100);
-    const selectedTLDs = tlds && tlds.length > 0 ? tlds : ['.com', '.net', '.org', '.io'];
-    const min = Math.max(parseInt(minLength) || 4, 2);
-    const max = Math.min(parseInt(maxLength) || 20, 63);
-    const withNumbers = allowNumbers !== false; // default true
+// ── Smart AI Domain Generator ────────────────────────────────────
+app.post('/api/generate-domains', async (req, res) => {
+    const { type, keywords, count, useLLM, tlds, minLength, maxLength, allowNumbers } = req.body;
 
-    const customKW = keywords
-        ? keywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean)
-        : [];
-    const allKeywords = [...KEYWORDS, ...customKW];
-    const domains = new Set();
-    let attempts = 0; // ✅ FIX #6 — infinite loop guard
+    const targetCount  = Math.min(parseInt(count) || 20, 100);
+    const selectedTLDs = (tlds && tlds.length > 0) ? tlds : ['.com', '.net', '.org', '.io'];
+    const minLen       = Math.max(parseInt(minLength) || 4, 2);
+    const maxLen       = Math.min(parseInt(maxLength) || 30, 63);
+    const withNumbers  = allowNumbers !== false;
 
-    while (domains.size < targetCount && attempts < 500) {
-        attempts++;
-        let name = '';
-
-        if (type === 'geo' || (type === 'mixed' && Math.random() > 0.5)) {
-            const city = CITIES[Math.floor(Math.random() * CITIES.length)];
-            const kw   = allKeywords[Math.floor(Math.random() * allKeywords.length)];
-            name = city + kw;
-        } else {
-            const prefix = PREFIXES[Math.floor(Math.random() * PREFIXES.length)];
-            const kw1    = allKeywords[Math.floor(Math.random() * allKeywords.length)];
-            const kw2    = allKeywords[Math.floor(Math.random() * allKeywords.length)];
-            name = prefix + kw1 + (Math.random() > 0.5 ? kw2 : '');
-        }
-
-        // ✅ FIX #5 — Strip numbers if not allowed
-        if (!withNumbers) name = name.replace(/[0-9]/g, '');
-
-        // ✅ FIX #5 — Apply length filter
-        if (name.length < min || name.length > max) continue;
-
-        const tld = selectedTLDs[Math.floor(Math.random() * selectedTLDs.length)];
-        domains.add(name + tld);
+    // Parse keywords — accept both string and array
+    let kwArray = [];
+    if (Array.isArray(keywords)) {
+        kwArray = keywords.map(k => k.trim().toLowerCase()).filter(Boolean);
+    } else if (typeof keywords === 'string' && keywords.trim()) {
+        kwArray = keywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
     }
 
-    res.json({ domains: Array.from(domains), count: domains.size });
+    let domains = [];
+
+    // Try LLM first if enabled
+    if (useLLM) {
+        console.log(`🤖 Attempting LLM generation for keywords: [${kwArray.join(', ')}]`);
+        const llmResult = await generateWithLLM(kwArray, type, targetCount, selectedTLDs);
+        if (llmResult && llmResult.length >= 3) {
+            // Apply length + number filters to LLM output
+            domains = llmResult.filter(d => {
+                const namePart = d.split('.')[0];
+                if (!withNumbers && /[0-9]/.test(namePart)) return false;
+                if (namePart.length < minLen || namePart.length > maxLen) return false;
+                return true;
+            }).slice(0, targetCount);
+            console.log(`✅ LLM generated ${domains.length} domains`);
+        } else {
+            console.log('⚠️ LLM returned insufficient results, using smart fallback');
+        }
+    }
+
+    // Fallback / no-LLM: smart keyword-aware generator
+    if (domains.length < targetCount) {
+        const remaining = targetCount - domains.length;
+        const smartDomains = generateSmart(kwArray, type, remaining, selectedTLDs, minLen, maxLen, withNumbers);
+        domains = [...new Set([...domains, ...smartDomains])].slice(0, targetCount);
+    }
+
+    res.json({ domains, count: domains.length, usedLLM: useLLM && domains.length > 0 });
 });
 
-// Upload domains from file
 app.post('/api/upload-domains', upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const content = fs.readFileSync(req.file.path, 'utf8');
@@ -289,56 +407,51 @@ app.post('/api/upload-domains', upload.single('file'), (req, res) => {
     res.json({ domains, count: domains.length });
 });
 
-// Stats — computed live from DB
 app.get('/api/stats', (req, res) => {
-    const db = readDB();
-    const domains = Object.values(db.cache || {});
-    const now = Date.now();
-    const sales = db.sales || [];
+    const db        = readDB();
+    const domains   = Object.values(db.cache || {});
+    const sales     = db.sales     || [];
     const portfolio = db.portfolio || [];
-    const totalRevenue = sales.reduce((s, x) => s + (parseFloat(x.sellPrice) || 0), 0);
-    const totalInvested = sales.reduce((s, x) => s + (parseFloat(x.buyPrice) || 0), 0) +
-                          portfolio.reduce((s, x) => s + (parseFloat(x.price) || 0), 0);
-    const totalProfit = totalRevenue - sales.reduce((s, x) => s + (parseFloat(x.buyPrice) || 0), 0);
-    const totalROI = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
+    const totalRevenue  = sales.reduce((s, x) => s + (parseFloat(x.sellPrice) || 0), 0);
+    const totalCostSales= sales.reduce((s, x) => s + (parseFloat(x.buyPrice)  || 0), 0);
+    const totalInvested = totalCostSales + portfolio.reduce((s, x) => s + (parseFloat(x.price) || 0), 0);
+    const totalProfit   = totalRevenue - totalCostSales;
+    const totalROI      = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
     res.json({
-        totalScans: db.stats?.totalScans || domains.length,
+        totalScans:       db.stats?.totalScans || domains.length,
         availableDomains: domains.filter(d => d.available === true).length,
-        expiring7: domains.filter(d => d.daysLeft !== null && d.daysLeft >= 0 && d.daysLeft <= 7).length,
-        premiumDomains: domains.filter(d => d.premium).length,
-        totalMonitored: domains.length,
+        expiring7:        domains.filter(d => d.daysLeft !== null && d.daysLeft >= 0 && d.daysLeft <= 7).length,
+        premiumDomains:   domains.filter(d => d.premium).length,
+        totalMonitored:   domains.length,
         totalProfit, totalRevenue, totalInvested, totalROI
     });
 });
 
-// Monitoring filter
 app.get('/api/monitoring/filter', (req, res) => {
     const db = readDB();
     let monitoring = Object.values(db.cache || {});
     const { keyword, available, registrar } = req.query;
-    if (keyword) monitoring = monitoring.filter(d => d.domain && d.domain.includes(keyword.toLowerCase()));
+    if (keyword)   monitoring = monitoring.filter(d => d.domain && d.domain.includes(keyword.toLowerCase()));
     if (available !== undefined && available !== '') monitoring = monitoring.filter(d => String(d.available) === available);
     if (registrar) monitoring = monitoring.filter(d => d.registrar && d.registrar.toLowerCase().includes(registrar.toLowerCase()));
     monitoring.sort((a, b) => (b.lastChecked || 0) - (a.lastChecked || 0));
     res.json({ monitoring, count: monitoring.length });
 });
 
-// Portfolio
-app.get('/api/portfolio', (req, res) => { const db = readDB(); res.json(db.portfolio || []); });
+app.get('/api/portfolio',  (req, res) => { const db = readDB(); res.json(db.portfolio || []); });
 app.post('/api/portfolio', (req, res) => {
-    const db = readDB();
+    const db   = readDB();
     const item = { id: Date.now().toString(), ...req.body, dateAdded: new Date().toISOString() };
     db.portfolio.push(item);
     writeDB(db);
     res.json(item);
 });
 
-// Sales
-app.get('/api/sales', (req, res) => { const db = readDB(); res.json(db.sales || []); });
+app.get('/api/sales',  (req, res) => { const db = readDB(); res.json(db.sales || []); });
 app.post('/api/sales', (req, res) => {
     const db = readDB();
     const { domain, buyPrice, sellPrice, buyDate, sellDate, notes } = req.body;
-    const profit = (parseFloat(sellPrice) || 0) - (parseFloat(buyPrice) || 0);
+    const profit        = (parseFloat(sellPrice) || 0) - (parseFloat(buyPrice) || 0);
     const profitPercent = buyPrice > 0 ? ((profit / parseFloat(buyPrice)) * 100).toFixed(1) : '0';
     const sale = { id: Date.now().toString(), domain, buyPrice: parseFloat(buyPrice), sellPrice: parseFloat(sellPrice), profit, profitPercent, buyDate, sellDate, notes, dateAdded: new Date().toISOString() };
     db.sales.push(sale);
@@ -346,52 +459,45 @@ app.post('/api/sales', (req, res) => {
     res.json(sale);
 });
 
-// Profit analytics
 app.get('/api/analytics/profit', (req, res) => {
-    const db = readDB();
+    const db     = readDB();
     const period = req.query.period || 'month';
-    const now = new Date();
-    let cutoff = new Date();
-    if (period === 'week') cutoff.setDate(now.getDate() - 7);
+    const now    = new Date();
+    let cutoff   = new Date();
+    if      (period === 'week')  cutoff.setDate(now.getDate() - 7);
     else if (period === 'month') cutoff.setMonth(now.getMonth() - 1);
-    else if (period === 'year') cutoff.setFullYear(now.getFullYear() - 1);
-    const sales = (db.sales || []).filter(s => !s.sellDate || new Date(s.sellDate) >= cutoff);
-    const totalSales = sales.length;
-    const totalProfit = sales.reduce((s, x) => s + (x.profit || 0), 0);
-    const averageProfit = totalSales > 0 ? totalProfit / totalSales : 0;
-    const totalRevenue = sales.reduce((s, x) => s + (parseFloat(x.sellPrice) || 0), 0);
-    const totalCost = sales.reduce((s, x) => s + (parseFloat(x.buyPrice) || 0), 0);
+    else if (period === 'year')  cutoff.setFullYear(now.getFullYear() - 1);
+    const sales              = (db.sales || []).filter(s => !s.sellDate || new Date(s.sellDate) >= cutoff);
+    const totalSales         = sales.length;
+    const totalProfit        = sales.reduce((s, x) => s + (x.profit || 0), 0);
+    const averageProfit      = totalSales > 0 ? totalProfit / totalSales : 0;
+    const totalRevenue       = sales.reduce((s, x) => s + (parseFloat(x.sellPrice) || 0), 0);
+    const totalCost          = sales.reduce((s, x) => s + (parseFloat(x.buyPrice)  || 0), 0);
     const averageProfitPercent = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
     res.json({ totalSales, totalProfit, averageProfit, totalRevenue, totalCost, averageProfitPercent });
 });
 
-// Config
-app.get('/api/config', (req, res) => res.json(readConfig()));
-app.post('/api/config', (req, res) => {
-    writeConfig(req.body);
-    res.json({ success: true });
-});
+app.get('/api/config',  (req, res) => res.json(readConfig()));
+app.post('/api/config', (req, res) => { writeConfig(req.body); res.json({ success: true }); });
 
-// LLM connection test
 app.post('/api/test-llm-connection', async (req, res) => {
     const { provider, endpoint, model, apiKey } = req.body;
     const start = Date.now();
     try {
         if (provider === 'local') {
-            const url = endpoint || 'http://localhost:11434/api/generate';
-            const r = await axios.post(url, { model: model || 'qwen2.5:3b', prompt: 'Say: OK', stream: false }, { timeout: 15000 });
-            return res.json({ success: true, message: 'Local LLM connected', model: model, latency: Date.now() - start });
+            await axios.post(endpoint || 'http://localhost:11434/api/generate', { model: model || 'qwen2.5:3b', prompt: 'Say: OK', stream: false }, { timeout: 15000 });
+            return res.json({ success: true, message: 'Local LLM connected', model, latency: Date.now() - start });
         } else if (provider === 'openai') {
-            const r = await axios.post('https://api.openai.com/v1/chat/completions', { model, messages: [{ role: 'user', content: 'Say OK' }], max_tokens: 5 }, { headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 15000 });
+            await axios.post('https://api.openai.com/v1/chat/completions', { model, messages: [{ role: 'user', content: 'Say OK' }], max_tokens: 5 }, { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 15000 });
             return res.json({ success: true, message: 'OpenAI connected', model, latency: Date.now() - start });
         } else if (provider === 'claude') {
-            const r = await axios.post('https://api.anthropic.com/v1/messages', { model, max_tokens: 5, messages: [{ role: 'user', content: 'Say OK' }] }, { headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, timeout: 15000 });
+            await axios.post('https://api.anthropic.com/v1/messages', { model, max_tokens: 5, messages: [{ role: 'user', content: 'Say OK' }] }, { headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, timeout: 15000 });
             return res.json({ success: true, message: 'Claude connected', model, latency: Date.now() - start });
         } else if (provider === 'perplexity') {
-            const r = await axios.post('https://api.perplexity.ai/chat/completions', { model, messages: [{ role: 'user', content: 'Say OK' }], max_tokens: 5 }, { headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 15000 });
+            await axios.post('https://api.perplexity.ai/chat/completions', { model, messages: [{ role: 'user', content: 'Say OK' }], max_tokens: 5 }, { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 15000 });
             return res.json({ success: true, message: 'Perplexity connected', model, latency: Date.now() - start });
         } else if (provider === 'grok') {
-            const r = await axios.post('https://api.x.ai/v1/chat/completions', { model, messages: [{ role: 'user', content: 'Say OK' }], max_tokens: 5 }, { headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 15000 });
+            await axios.post('https://api.x.ai/v1/chat/completions', { model, messages: [{ role: 'user', content: 'Say OK' }], max_tokens: 5 }, { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 15000 });
             return res.json({ success: true, message: 'Grok connected', model, latency: Date.now() - start });
         }
         res.status(400).json({ success: false, error: 'Unknown provider' });

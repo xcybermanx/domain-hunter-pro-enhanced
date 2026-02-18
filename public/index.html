@@ -13,10 +13,7 @@
         <!-- Sidebar -->
         <nav class="sidebar">
             <div class="sidebar-header">
-                <div class="logo">
-                    <i class="fas fa-globe-americas"></i>
-                    <span>Domain Hunter</span>
-                </div>
+                <div class="logo"><i class="fas fa-globe-americas"></i><span>Domain Hunter</span></div>
                 <span class="badge-ai">AI</span>
             </div>
             <div class="sidebar-menu">
@@ -46,10 +43,7 @@
             <div class="sidebar-footer">
                 <div class="user-info">
                     <i class="fas fa-user-circle"></i>
-                    <div>
-                        <div class="user-name">Domain Hunter</div>
-                        <div class="user-status">Pro Edition</div>
-                    </div>
+                    <div><div class="user-name">Domain Hunter</div><div class="user-status">Pro Edition</div></div>
                 </div>
             </div>
         </nav>
@@ -98,48 +92,48 @@
                     <h3>Generation Type</h3>
                     <div class="option-grid">
                         <div class="option-card active" id="opt-geo" onclick="selectGenType('geo')">
-                            <i class="fas fa-globe"></i><h4>Geo Domains</h4><p>City + Country combinations</p>
+                            <i class="fas fa-globe"></i><h4>Geo Domains</h4><p>Location + industry style (e.g. madridrealty.com)</p>
                         </div>
-                        <div class="option-card" id="opt-realistic" onclick="selectGenType('realistic')">
-                            <i class="fas fa-lightbulb"></i><h4>Realistic Names</h4><p>Business-ready domains</p>
+                        <div class="option-card" id="opt-business" onclick="selectGenType('business')">
+                            <i class="fas fa-briefcase"></i><h4>Business Names</h4><p>Brandable keyword combos (e.g. madridpro.io)</p>
                         </div>
                         <div class="option-card" id="opt-mixed" onclick="selectGenType('mixed')">
-                            <i class="fas fa-random"></i><h4>Mixed</h4><p>Combination of both</p>
+                            <i class="fas fa-random"></i><h4>Mixed</h4><p>Combination of both styles</p>
                         </div>
                     </div>
 
+                    <!-- Keywords -->
+                    <div class="form-group" style="margin-top:20px;">
+                        <label style="font-weight:700;">🔑 Keywords <span style="color:#ef4444;">*</span> <small style="color:#9ca3af;font-weight:400;">(your domains will be built around these)</small></label>
+                        <input type="text" id="genKeywords" placeholder="e.g. madrid, realty, invest — comma separated" style="font-size:15px;">
+                        <p style="color:#6b7280;font-size:12px;margin-top:6px;">💡 Tip: enter a city, niche, or brand word. The generator will use it as the core of every domain.</p>
+                    </div>
+
                     <div class="form-row">
-                        <div class="form-group">
-                            <label>Custom Keywords (optional, comma-separated)</label>
-                            <input type="text" id="genKeywords" placeholder="tech, shop, market, hub">
-                        </div>
                         <div class="form-group">
                             <label>Count</label>
                             <input type="number" id="genCount" value="20" min="5" max="100">
                         </div>
-                    </div>
-
-                    <!-- ✅ FIX #9 — Domain length + numbers controls -->
-                    <div class="form-row">
                         <div class="form-group">
-                            <label>Min Name Length <small style="color:#9ca3af">(chars, excl. TLD)</small></label>
-                            <input type="number" id="minLength" value="4" min="2" max="20" placeholder="4">
+                            <label>Min Name Length <small style="color:#9ca3af">(excl. TLD)</small></label>
+                            <input type="number" id="minLength" value="4" min="2" max="20">
                         </div>
                         <div class="form-group">
-                            <label>Max Name Length <small style="color:#9ca3af">(chars, excl. TLD)</small></label>
-                            <input type="number" id="maxLength" value="20" min="2" max="63" placeholder="20">
+                            <label>Max Name Length <small style="color:#9ca3af">(excl. TLD)</small></label>
+                            <input type="number" id="maxLength" value="30" min="2" max="63">
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="allowNumbers" checked>
-                            <span>Allow Numbers in domain names</span>
+                            <span>Allow numbers in domain names</span>
                         </label>
                     </div>
 
+                    <!-- TLD Selector -->
                     <div class="form-group">
-                        <label>Domain Extensions (TLDs)</label>
+                        <label style="font-weight:700;">🌐 Domain Extensions (TLDs)</label>
                         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-top:10px;">
                             <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".com" checked><span>.com</span></label>
                             <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".net" checked><span>.net</span></label>
@@ -155,34 +149,39 @@
                             <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".shop"><span>.shop</span></label>
                             <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".xyz"><span>.xyz</span></label>
                             <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".club"><span>.club</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".es"><span>.es</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".de"><span>.de</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".fr"><span>.fr</span></label>
+                            <label class="checkbox-label" style="margin:0;"><input type="checkbox" class="tld-checkbox" value=".uk"><span>.uk</span></label>
                         </div>
-                    </div>
 
-                    <!-- ✅ FIX #10 — Custom domain add UI -->
-                    <div class="form-group" style="background:rgba(99,102,241,0.05);border:1px dashed #818cf8;border-radius:12px;padding:16px;margin-bottom:16px;">
-                        <label style="color:#6366f1;font-weight:700;">➕ Add Custom Domain to Scanner</label>
-                        <div style="display:flex;gap:10px;margin-top:8px;">
-                            <input type="text" id="customDomain" placeholder="e.g. myawesomesite.com" style="flex:1;">
-                            <button class="btn btn-secondary" onclick="addCustomDomainToScanner()" style="white-space:nowrap;">
-                                <i class="fas fa-plus"></i> Add to Scanner
-                            </button>
+                        <!-- Custom TLD input -->
+                        <div style="margin-top:14px;padding:14px;background:rgba(99,102,241,0.06);border:1px dashed #818cf8;border-radius:10px;">
+                            <label style="font-weight:600;color:#6366f1;font-size:13px;">✏️ Add custom TLD extension</label>
+                            <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+                                <input type="text" id="customTldInput" placeholder="e.g. .madrid  .realty  .global" style="flex:1;font-size:14px;">
+                                <button class="btn btn-secondary" onclick="addCustomTLD()" style="white-space:nowrap;">
+                                    <i class="fas fa-plus"></i> Add TLD
+                                </button>
+                            </div>
+                            <div id="customTldList" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;"></div>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="useLLM">
-                            <span>🤖 Use AI/LLM (Configure in Settings)</span>
+                            <span>🤖 Use AI/LLM for smarter generation (configure in Settings first)</span>
                         </label>
                     </div>
 
-                    <!-- ✅ FIX #7 — Progress block with correct id -->
+                    <!-- Progress -->
                     <div id="generationProgress" style="display:none;text-align:center;padding:20px;background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.1));border-radius:12px;margin-bottom:20px;">
                         <div style="font-size:48px;margin-bottom:15px;">
                             <i class="fas fa-magic" style="color:#8b5cf6;animation:spin 2s linear infinite;"></i>
                         </div>
                         <h3 style="color:#8b5cf6;margin:0 0 10px;">🎯 Generating Domains...</h3>
-                        <p style="color:#6b7280;margin:0;">AI is creating domain names based on your settings</p>
+                        <p style="color:#6b7280;margin:0;" id="generationProgressText">Building creative domain names from your keywords...</p>
                         <div style="margin-top:15px;">
                             <div style="height:6px;background:rgba(139,92,246,0.2);border-radius:10px;overflow:hidden;">
                                 <div style="height:100%;background:linear-gradient(90deg,#8b5cf6,#6366f1);border-radius:10px;animation:progressAnim 1.5s ease-in-out infinite;"></div>
@@ -190,7 +189,6 @@
                         </div>
                     </div>
 
-                    <!-- ✅ FIX #7 — id="generateBtn" on the button -->
                     <button class="btn btn-primary btn-large" onclick="generateDomains()" id="generateBtn">
                         <i class="fas fa-magic"></i> Generate Domains
                     </button>
@@ -211,8 +209,6 @@
                         <label>Enter Domains (one per line)</label>
                         <textarea id="domainInput" rows="10" placeholder="example.com&#10;test.io&#10;awesome-domain.app"></textarea>
                     </div>
-
-                    <!-- ✅ FIX #1 — Scan Progress block -->
                     <div id="scanProgress" style="display:none;text-align:center;padding:20px;background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(34,197,94,0.1));border-radius:12px;margin-bottom:20px;">
                         <div style="font-size:48px;margin-bottom:15px;">
                             <i class="fas fa-satellite-dish" style="color:#10b981;animation:pulse 1.5s ease-in-out infinite;"></i>
@@ -225,12 +221,9 @@
                             </div>
                         </div>
                     </div>
-
-                    <!-- ✅ FIX #1 — id="checkBtn" on the button -->
                     <button class="btn btn-primary btn-large" onclick="checkDomains()" id="checkBtn">
                         <i class="fas fa-rocket"></i> Check Domains
                     </button>
-
                     <div id="scanResults" style="margin-top:20px;"></div>
                 </div>
             </div>
@@ -257,7 +250,7 @@
                 </div>
             </div>
 
-            <!-- Profit Tracker Page -->
+            <!-- Profit Tracker -->
             <div id="profit-page" class="page">
                 <div class="page-header">
                     <h1>💰 Profit Tracker</h1>
@@ -283,7 +276,7 @@
                 <div class="content-card"><h3>Analytics</h3><div id="profitAnalytics"></div></div>
             </div>
 
-            <!-- Portfolio Page -->
+            <!-- Portfolio -->
             <div id="portfolio-page" class="page">
                 <div class="page-header"><h1>💼 Portfolio</h1></div>
                 <div class="content-card">
@@ -299,7 +292,7 @@
                 <div class="content-card"><h3>My Domains</h3><div id="portfolioList"></div></div>
             </div>
 
-            <!-- Settings Page -->
+            <!-- Settings -->
             <div id="settings-page" class="page">
                 <div class="page-header">
                     <h1>⚙️ AI Settings</h1>
@@ -320,12 +313,11 @@
                         </select>
                     </div>
                     <div id="connectionTestResult" style="display:none;margin-bottom:20px;"></div>
-                    <!-- Local Config -->
                     <div id="localConfig" class="llm-config">
                         <h4><i class="fas fa-server"></i> Local LLM (Ollama) - FREE</h4>
                         <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="localEnabled"><span>Enable Local LLM</span></label></div>
                         <div class="form-group">
-                            <label>Model <span style="color:#10b981;font-weight:700;">⭐ Top Picks</span></label>
+                            <label>Model</label>
                             <select id="localModel">
                                 <option value="qwen2.5:3b" selected>⭐ Qwen2.5:3b (Recommended)</option>
                                 <option value="phi3:mini">⭐ Phi3:mini (Ultra Fast)</option>
@@ -340,37 +332,33 @@
                         <button class="btn btn-secondary" onclick="testConnection('local')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test Connection</button>
                         <div class="alert alert-info"><i class="fas fa-info-circle"></i> <strong>Quick Setup:</strong><br>1. <code>ollama pull qwen2.5:3b</code><br>2. <code>ollama serve</code></div>
                     </div>
-                    <!-- OpenAI Config -->
                     <div id="openaiConfig" class="llm-config" style="display:none;">
-                        <h4><i class="fab fa-openai"></i> OpenAI</h4>
+                        <h4><i class="fas fa-robot"></i> OpenAI</h4>
                         <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="openaiEnabled"><span>Enable OpenAI</span></label></div>
                         <div class="form-group"><label>API Key</label><input type="password" id="openaiKey" placeholder="sk-..."></div>
                         <div class="form-group"><label>Model</label><select id="openaiModel"><option value="gpt-3.5-turbo">GPT-3.5 Turbo</option><option value="gpt-4">GPT-4</option><option value="gpt-4-turbo">GPT-4 Turbo</option></select></div>
-                        <button class="btn btn-secondary" onclick="testConnection('openai')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test API Connection</button>
+                        <button class="btn btn-secondary" onclick="testConnection('openai')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test Connection</button>
                     </div>
-                    <!-- Claude Config -->
                     <div id="claudeConfig" class="llm-config" style="display:none;">
                         <h4><i class="fas fa-brain"></i> Claude</h4>
                         <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="claudeEnabled"><span>Enable Claude</span></label></div>
                         <div class="form-group"><label>API Key</label><input type="password" id="claudeKey" placeholder="sk-ant-..."></div>
                         <div class="form-group"><label>Model</label><select id="claudeModel"><option value="claude-3-haiku">Claude 3 Haiku</option><option value="claude-3-sonnet">Claude 3 Sonnet</option><option value="claude-3-opus">Claude 3 Opus</option></select></div>
-                        <button class="btn btn-secondary" onclick="testConnection('claude')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test API Connection</button>
+                        <button class="btn btn-secondary" onclick="testConnection('claude')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test Connection</button>
                     </div>
-                    <!-- Perplexity Config -->
                     <div id="perplexityConfig" class="llm-config" style="display:none;">
                         <h4><i class="fas fa-bolt"></i> Perplexity API</h4>
                         <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="perplexityEnabled"><span>Enable Perplexity</span></label></div>
                         <div class="form-group"><label>API Key</label><input type="password" id="perplexityKey" placeholder="pplx-..."></div>
                         <div class="form-group"><label>Model</label><select id="perplexityModel"><option value="llama-3.1-sonar-small-128k-online">Sonar Small</option><option value="llama-3.1-sonar-large-128k-online">Sonar Large</option></select></div>
-                        <button class="btn btn-secondary" onclick="testConnection('perplexity')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test API Connection</button>
+                        <button class="btn btn-secondary" onclick="testConnection('perplexity')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test Connection</button>
                     </div>
-                    <!-- Grok Config -->
                     <div id="grokConfig" class="llm-config" style="display:none;">
                         <h4><i class="fas fa-robot"></i> Grok</h4>
                         <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="grokEnabled"><span>Enable Grok</span></label></div>
                         <div class="form-group"><label>API Key</label><input type="password" id="grokKey" placeholder="xai-..."></div>
                         <div class="form-group"><label>Model</label><select id="grokModel"><option value="grok-1">Grok-1</option></select></div>
-                        <button class="btn btn-secondary" onclick="testConnection('grok')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test API Connection</button>
+                        <button class="btn btn-secondary" onclick="testConnection('grok')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test Connection</button>
                     </div>
                     <button class="btn btn-success btn-large" onclick="saveConfig()"><i class="fas fa-save"></i> Save Configuration</button>
                 </div>
@@ -380,8 +368,8 @@
     </div>
 
     <style>
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.7; transform:scale(1.1); } }
+    @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+    @keyframes pulse { 0%,100% { opacity:1;transform:scale(1); } 50% { opacity:0.7;transform:scale(1.1); } }
     @keyframes progressAnim { 0% { width:5%; } 50% { width:75%; } 100% { width:95%; } }
     </style>
 
