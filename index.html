@@ -97,7 +97,7 @@
             color: #333;
         }
         
-        input[type="text"], textarea {
+        input[type="text"], input[type="number"], textarea, select {
             width: 100%;
             padding: 12px;
             border: 2px solid #e0e0e0;
@@ -106,7 +106,7 @@
             transition: border-color 0.3s;
         }
         
-        input[type="text"]:focus, textarea:focus {
+        input[type="text"]:focus, input[type="number"]:focus, textarea:focus, select:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -115,6 +115,33 @@
             min-height: 150px;
             resize: vertical;
             font-family: monospace;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
         }
         
         .btn {
@@ -148,6 +175,38 @@
         .btn-danger {
             background: #dc3545;
             box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+        }
+
+        .progress-container {
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-bar-wrapper {
+            background: #e0e0e0;
+            border-radius: 10px;
+            height: 30px;
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .progress-text {
+            text-align: center;
+            color: #333;
+            font-weight: 500;
         }
         
         .results-table {
@@ -325,14 +384,66 @@
         </div>
         
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('scanner')">Domain Scanner</button>
+            <button class="tab active" onclick="switchTab('generator')">🤖 AI Domain Generator</button>
+            <button class="tab" onclick="switchTab('scanner')">Domain Scanner</button>
             <button class="tab" onclick="switchTab('watchlist')">Watchlist</button>
             <button class="tab" onclick="switchTab('expiration')">Expiration Tracker</button>
             <button class="tab" onclick="switchTab('portfolio')">Portfolio</button>
             <button class="tab" onclick="switchTab('cache')">Cache Manager</button>
         </div>
         
-        <div id="scanner" class="tab-content active">
+        <div id="generator" class="tab-content active">
+            <h2>🤖 AI Domain Generator</h2>
+            <div class="cache-info">
+                <strong>✨ Generate professional domain names with AI</strong> - Configure length, numbers, and hyphens for perfect results.
+            </div>
+            
+            <div class="input-group">
+                <label>Keyword or Theme</label>
+                <input type="text" id="genKeyword" placeholder="e.g., tech, fashion, food, travel">
+            </div>
+
+            <div class="input-group">
+                <label>Custom Domain (Optional - Add your own domain)</label>
+                <input type="text" id="customDomain" placeholder="e.g., myawesomesite.com">
+            </div>
+
+            <div class="options-grid">
+                <div class="input-group">
+                    <label>Domain Length (characters)</label>
+                    <input type="number" id="domainLength" min="4" max="20" value="8" placeholder="4-20">
+                </div>
+                <div class="input-group">
+                    <label>Number of Domains</label>
+                    <input type="number" id="domainCount" min="1" max="50" value="10">
+                </div>
+            </div>
+
+            <div class="options-grid">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="includeNumbers" checked>
+                    <label for="includeNumbers">Include Numbers</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="includeHyphens">
+                    <label for="includeHyphens">Include Hyphens</label>
+                </div>
+            </div>
+
+            <button class="btn" onclick="generateDomains()">🚀 Generate Domains</button>
+            <button class="btn btn-secondary btn-small" onclick="clearGenResults()">Clear Results</button>
+            
+            <div id="progressContainer" class="progress-container">
+                <div class="progress-bar-wrapper">
+                    <div id="progressBar" class="progress-bar" style="width: 0%">0%</div>
+                </div>
+                <div id="progressText" class="progress-text">Generating domains...</div>
+            </div>
+
+            <div id="genResults"></div>
+        </div>
+
+        <div id="scanner" class="tab-content">
             <div class="cache-info">
                 <strong>ℹ️ Auto-Save Enabled:</strong> All scanned domains are automatically saved to cache with expiration dates and premium status.
             </div>
@@ -450,13 +561,107 @@
             localStorage.setItem(STORAGE_KEYS.PORTFOLIO, JSON.stringify(portfolio));
         }
 
+        // Update progress bar
+        function updateProgress(current, total, text) {
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            
+            progressContainer.style.display = 'block';
+            const percentage = Math.round((current / total) * 100);
+            progressBar.style.width = percentage + '%';
+            progressBar.textContent = percentage + '%';
+            progressText.textContent = text || `Processing ${current} of ${total}...`;
+            
+            if (current >= total) {
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                }, 1000);
+            }
+        }
+
+        // Generate random domain name
+        function generateDomainName(keyword, length, includeNumbers, includeHyphens) {
+            const consonants = 'bcdfghjklmnpqrstvwxyz';
+            const vowels = 'aeiou';
+            const numbers = '0123456789';
+            
+            let domain = keyword ? keyword.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+            const targetLength = length || 8;
+            
+            // Generate remaining characters
+            while (domain.length < targetLength) {
+                if (Math.random() > 0.5) {
+                    domain += consonants[Math.floor(Math.random() * consonants.length)];
+                } else {
+                    domain += vowels[Math.floor(Math.random() * vowels.length)];
+                }
+            }
+            
+            // Add number if enabled
+            if (includeNumbers && Math.random() > 0.6) {
+                const numCount = Math.floor(Math.random() * 3) + 1;
+                for (let i = 0; i < numCount; i++) {
+                    domain += numbers[Math.floor(Math.random() * numbers.length)];
+                }
+            }
+            
+            // Add hyphen if enabled
+            if (includeHyphens && domain.length > 4 && Math.random() > 0.7) {
+                const pos = Math.floor(Math.random() * (domain.length - 2)) + 1;
+                domain = domain.slice(0, pos) + '-' + domain.slice(pos);
+            }
+            
+            return domain.slice(0, targetLength) + '.com';
+        }
+
+        // Generate domains with progress
+        async function generateDomains() {
+            const keyword = document.getElementById('genKeyword').value.trim();
+            const customDomain = document.getElementById('customDomain').value.trim();
+            const length = parseInt(document.getElementById('domainLength').value) || 8;
+            const count = parseInt(document.getElementById('domainCount').value) || 10;
+            const includeNumbers = document.getElementById('includeNumbers').checked;
+            const includeHyphens = document.getElementById('includeHyphens').checked;
+            
+            if (!keyword && !customDomain) {
+                alert('Please enter a keyword or custom domain');
+                return;
+            }
+            
+            const domains = [];
+            
+            // Add custom domain if provided
+            if (customDomain) {
+                const cleanDomain = customDomain.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+                domains.push(cleanDomain.includes('.') ? cleanDomain : cleanDomain + '.com');
+            }
+            
+            // Generate AI domains
+            const generateCount = customDomain ? count - 1 : count;
+            for (let i = 0; i < generateCount; i++) {
+                domains.push(generateDomainName(keyword, length, includeNumbers, includeHyphens));
+            }
+            
+            // Check domains with progress
+            const results = [];
+            for (let i = 0; i < domains.length; i++) {
+                updateProgress(i + 1, domains.length, `Checking ${domains[i]}...`);
+                const result = await checkDomain(domains[i]);
+                results.push(result);
+            }
+            
+            displayScanResults(results, 'genResults');
+        }
+
         // Domain checking simulation (replace with real API calls)
         async function checkDomain(domain) {
             // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 300));
             
             // Check if in cache and recent (less than 24 hours old)
             if (cache[domain] && (Date.now() - cache[domain].lastChecked < 86400000)) {
+                cache[domain].cached = true;
                 return cache[domain];
             }
             
@@ -511,12 +716,12 @@
                 results.push(result);
             }
             
-            displayScanResults(results);
+            displayScanResults(results, 'scanResults');
         }
 
         // Display scan results
-        function displayScanResults(results) {
-            const resultsDiv = document.getElementById('scanResults');
+        function displayScanResults(results, targetDiv = 'scanResults') {
+            const resultsDiv = document.getElementById(targetDiv);
             
             if (results.length === 0) {
                 resultsDiv.innerHTML = '<div class="empty-state"><p>No results to display</p></div>';
@@ -804,6 +1009,12 @@
         function clearResults() {
             document.getElementById('scanResults').innerHTML = '';
             document.getElementById('domainInput').value = '';
+        }
+
+        function clearGenResults() {
+            document.getElementById('genResults').innerHTML = '';
+            document.getElementById('genKeyword').value = '';
+            document.getElementById('customDomain').value = '';
         }
 
         function filterWatchlist(filter) {
