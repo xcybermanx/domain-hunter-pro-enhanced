@@ -187,7 +187,7 @@
                     <div class="form-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="useLLM">
-                            <span>🤖 Use AI/LLM (Qwen2.5:3b - Configure in Settings)</span>
+                            <span>🤖 Use AI/LLM (Configure in Settings)</span>
                         </label>
                     </div>
                     
@@ -359,9 +359,13 @@
                             <option value="local">Local (Ollama) - FREE & PRIVATE</option>
                             <option value="openai">OpenAI (GPT) - Paid</option>
                             <option value="claude">Claude (Anthropic) - Paid</option>
+                            <option value="perplexity">Perplexity API - Paid</option>
                             <option value="grok">Grok (xAI) - Paid</option>
                         </select>
                     </div>
+                    
+                    <!-- Test Connection Result -->
+                    <div id="connectionTestResult" style="display: none; margin-bottom: 20px;"></div>
                     
                     <!-- Local Config -->
                     <div id="localConfig" class="llm-config">
@@ -387,6 +391,11 @@
                         <div class="form-group">
                             <label>Endpoint</label>
                             <input type="text" id="localEndpoint" value="http://localhost:11434/api/generate">
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                            <button class="btn btn-secondary" onclick="testConnection('local')" style="flex: 1;">
+                                <i class="fas fa-vial"></i> Test Connection
+                            </button>
                         </div>
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle"></i>
@@ -421,6 +430,9 @@
                                 <option value="gpt-4-turbo">GPT-4 Turbo (Fastest)</option>
                             </select>
                         </div>
+                        <button class="btn btn-secondary" onclick="testConnection('openai')" style="width: 100%; margin-bottom: 15px;">
+                            <i class="fas fa-vial"></i> Test API Connection
+                        </button>
                     </div>
                     
                     <!-- Claude Config -->
@@ -444,6 +456,40 @@
                                 <option value="claude-3-opus">Claude 3 Opus (Best)</option>
                             </select>
                         </div>
+                        <button class="btn btn-secondary" onclick="testConnection('claude')" style="width: 100%; margin-bottom: 15px;">
+                            <i class="fas fa-vial"></i> Test API Connection
+                        </button>
+                    </div>
+                    
+                    <!-- Perplexity Config -->
+                    <div id="perplexityConfig" class="llm-config" style="display: none;">
+                        <h4><i class="fas fa-bolt"></i> Perplexity API</h4>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="perplexityEnabled">
+                                <span>Enable Perplexity</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>API Key</label>
+                            <input type="password" id="perplexityKey" placeholder="pplx-...">
+                        </div>
+                        <div class="form-group">
+                            <label>Model</label>
+                            <select id="perplexityModel">
+                                <option value="llama-3.1-sonar-small-128k-online">Sonar Small Online (Fast)</option>
+                                <option value="llama-3.1-sonar-large-128k-online">Sonar Large Online (Better)</option>
+                                <option value="llama-3.1-sonar-huge-128k-online">Sonar Huge Online (Best)</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-secondary" onclick="testConnection('perplexity')" style="width: 100%; margin-bottom: 15px;">
+                            <i class="fas fa-vial"></i> Test API Connection
+                        </button>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Get API Key:</strong><br>
+                            Visit <a href="https://www.perplexity.ai/settings/api" target="_blank" style="color: #3b82f6;">perplexity.ai/settings/api</a> to get your API key
+                        </div>
                     </div>
                     
                     <!-- Grok Config -->
@@ -465,6 +511,9 @@
                                 <option value="grok-1">Grok-1</option>
                             </select>
                         </div>
+                        <button class="btn btn-secondary" onclick="testConnection('grok')" style="width: 100%; margin-bottom: 15px;">
+                            <i class="fas fa-vial"></i> Test API Connection
+                        </button>
                     </div>
                     
                     <button class="btn btn-success btn-large" onclick="saveConfig()">
