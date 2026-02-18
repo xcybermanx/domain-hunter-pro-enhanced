@@ -449,8 +449,22 @@
                         <h4><i class="fas fa-bolt"></i> Perplexity API</h4>
                         <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="perplexityEnabled"><span>Enable Perplexity</span></label></div>
                         <div class="form-group"><label>API Key</label><input type="password" id="perplexityKey" placeholder="pplx-..."></div>
-                        <div class="form-group"><label>Model</label><select id="perplexityModel"><option value="llama-3.1-sonar-small-128k-online">Sonar Small Online</option><option value="llama-3.1-sonar-large-128k-online">Sonar Large Online</option><option value="llama-3.1-sonar-huge-128k-online">Sonar Huge Online</option></select></div>
+                        <div class="form-group">
+                            <label>Model</label>
+                            <select id="perplexityModel">
+                                <option value="sonar" selected>⭐ Sonar (Recommended - Fast Search-Grounded)</option>
+                                <option value="sonar-pro">Sonar Pro (Deeper Retrieval)</option>
+                                <option value="sonar-reasoning">Sonar Reasoning (Multi-Step)</option>
+                            </select>
+                        </div>
                         <button class="btn btn-secondary" onclick="testConnection('perplexity')" style="width:100%;margin-bottom:15px;"><i class="fas fa-vial"></i> Test Connection</button>
+                        <div class="alert alert-info" style="background:rgba(59,130,246,0.1);border-left:4px solid #3b82f6;padding:12px;border-radius:8px;">
+                            <i class="fas fa-info-circle"></i> <strong>2026 Model Names:</strong><br>
+                            Perplexity now uses simplified model names:<br>
+                            • <code>sonar</code> - Default, fast<br>
+                            • <code>sonar-pro</code> - More sources<br>
+                            • <code>sonar-reasoning</code> - Multi-step reasoning
+                        </div>
                     </div>
                     <div id="grokConfig" class="llm-config" style="display:none;">
                         <h4><i class="fas fa-robot"></i> Grok</h4>
