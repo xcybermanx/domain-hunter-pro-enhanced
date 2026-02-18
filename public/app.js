@@ -1,8 +1,10 @@
 // Domain Hunter Pro — Frontend JS
 const API = '/api';
 let selectedGenType = 'geo';
+let selectedGeoLocation = null;
+let geoSearchTimeout = null;
 
-// ── Navigation ──────────────────────────────────────────
+// ── Navigation ──────────────────────────────────────────────────
 function navigate(page) {
     document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -26,7 +28,75 @@ function selectGenType(type) {
     if (el) el.classList.add('active');
 }
 
-// ── Custom TLD manager ───────────────────────────────────
+// ── GeoNames Location Search ────────────────────────────────────
+function handleGeoSearch(query) {
+    clearTimeout(geoSearchTimeout);
+    if (!query || query.trim().length < 2) {
+        document.getElementById('geoSearchDropdown').style.display = 'none';
+        return;
+    }
+    geoSearchTimeout = setTimeout(() => {
+        const geoType = document.querySelector('input[name="geoType"]:checked').value;
+        searchGeoNames(query.trim(), geoType);
+    }, 400);
+}
+
+async function searchGeoNames(query, type) {
+    try {
+        const res = await fetch(`${API}/geonames/search?q=${encodeURIComponent(query)}&type=${type}`);
+        const data = await res.json();
+        if (data.results && data.results.length > 0) {
+            renderGeoResults(data.results);
+        } else {
+            const dropdown = document.getElementById('geoSearchDropdown');
+            dropdown.innerHTML = '<div style="padding:15px;text-align:center;color:#9ca3af;">No results found</div>';
+            dropdown.style.display = 'block';
+        }
+    } catch (err) {
+        console.error('GeoNames search error:', err);
+    }
+}
+
+function renderGeoResults(results) {
+    const dropdown = document.getElementById('geoSearchDropdown');
+    dropdown.innerHTML = results.map(r => {
+        const safeName = r.name.replace(/'/g, "\\'");
+        const safeCountry = (r.country || '').replace(/'/g, "\\'");
+        const popText = r.population > 0 ? `👥 ${(r.population / 1000).toFixed(0)}k` : '';
+        return `<div onclick="selectGeoLocation('${safeName}', '${safeCountry}')" style="padding:12px 15px;cursor:pointer;border-bottom:1px solid #f3f4f6;transition:all 0.2s;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <strong style="color:#1e293b;">${r.name}</strong>
+                <span style="color:#6b7280;font-size:13px;margin-left:8px;">${r.country ? `🌍 ${r.country}` : ''}</span>
+            </div>
+            <span style="font-size:12px;color:#9ca3af;background:rgba(0,0,0,0.05);padding:3px 8px;border-radius:6px;">${popText}</span>
+        </div>`;
+    }).join('');
+    dropdown.style.display = 'block';
+}
+
+function selectGeoLocation(name, country) {
+    selectedGeoLocation = { name, country };
+    const badge = document.getElementById('selectedLocationBadge');
+    const text = document.getElementById('selectedLocationText');
+    text.textContent = `📍 ${name}${country ? `, ${country}` : ''}`;
+    badge.style.display = 'block';
+    document.getElementById('geoSearchInput').value = '';
+    document.getElementById('geoSearchDropdown').style.display = 'none';
+    showToast(`✅ Selected: ${name}${country ? `, ${country}` : ''}`, 'success');
+}
+
+function clearSelectedLocation() {
+    selectedGeoLocation = null;
+    document.getElementById('selectedLocationBadge').style.display = 'none';
+    document.getElementById('geoSearchInput').value = '';
+}
+
+function clearGeoSearch() {
+    document.getElementById('geoSearchInput').value = '';
+    document.getElementById('geoSearchDropdown').style.display = 'none';
+}
+
+// ── Custom TLD manager ──────────────────────────────────────────
 const customTLDs = new Set();
 
 function addCustomTLD() {
@@ -72,10 +142,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const today = new Date().toISOString().split('T')[0];
     if (document.getElementById('saleBuyDate'))  document.getElementById('saleBuyDate').value  = today;
     if (document.getElementById('saleSellDate')) document.getElementById('saleSellDate').value = today;
+    
+    // Close GeoNames dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        const dropdown = document.getElementById('geoSearchDropdown');
+        const input = document.getElementById('geoSearchInput');
+        if (dropdown && input && !input.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+    
     console.log('🎯 Domain Hunter Pro initialized');
 });
 
-// ── Stats ────────────────────────────────────────────────────
+// ── Stats ───────────────────────────────────────────────────────
 async function refreshStats() {
     try {
         const res   = await fetch(`${API}/stats`);
@@ -121,7 +201,7 @@ async function refreshStats() {
 }
 setInterval(refreshStats, 30000);
 
-// ── Generator ────────────────────────────────────────────────
+// ── Generator ───────────────────────────────────────────────────
 async function generateDomains() {
     const keywords    = document.getElementById('genKeywords').value.trim();
     const count       = parseInt(document.getElementById('genCount').value) || 20;
@@ -134,8 +214,15 @@ async function generateDomains() {
     const allowHyphens= document.getElementById('allowHyphens').checked;
 
     if (tlds.length === 0) { alert('⚠️ Please select at least one TLD extension'); return; }
-    if (!keywords) {
-        const go = confirm('⚠️ No keywords entered — the generator will use generic words.\nFor better results, enter a keyword like "madrid" or "realty".\n\nContinue anyway?');
+    
+    // Build keywords array: user keywords + geo location
+    let kwArray = keywords ? keywords.split(',').map(k => k.trim()).filter(Boolean) : [];
+    if (selectedGeoLocation && selectedGeoLocation.name) {
+        kwArray.push(selectedGeoLocation.name.toLowerCase());
+    }
+    
+    if (kwArray.length === 0) {
+        const go = confirm('⚠️ No keywords or location entered — the generator will use generic words.\nFor better results, enter a keyword like "loyer" or select a location.\n\nContinue anyway?');
         if (!go) return;
     }
 
@@ -144,18 +231,35 @@ async function generateDomains() {
     const progressText = document.getElementById('generationProgressText');
     generateBtn.disabled      = true;
     progressDiv.style.display = 'block';
-    progressText.textContent  = useLLM ? '🤖 Asking AI to generate domains... (may take 10-30s)' : '⚡ Building keyword-based domain names...';
+    
+    if (selectedGeoLocation) {
+        progressText.textContent = `🗺️ Generating geo-targeted domains for ${selectedGeoLocation.name}...`;
+    } else {
+        progressText.textContent = useLLM ? '🤖 Asking AI to generate domains... (may take 10-30s)' : '⚡ Building keyword-based domain names...';
+    }
 
     try {
         const res  = await fetch(`${API}/generate-domains`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: selectedGenType, keywords, count, useLLM, tlds, minLength, maxLength, allowNumbers, allowHyphens })
+            body: JSON.stringify({ 
+                type: selectedGenType, 
+                keywords: kwArray.join(','), 
+                count, 
+                useLLM, 
+                tlds, 
+                minLength, 
+                maxLength, 
+                allowNumbers, 
+                allowHyphens,
+                geoLocation: selectedGeoLocation 
+            })
         });
         const data = await res.json();
         if (data.domains && data.domains.length > 0) {
             document.getElementById('domainInput').value = data.domains.join('\n');
-            const msg = data.usedLLM ? `🤖 AI generated ${data.count} domains!` : `⚡ Generated ${data.count} domains!`;
+            let msg = data.usedLLM ? `🤖 AI generated ${data.count} domains!` : `⚡ Generated ${data.count} domains!`;
+            if (selectedGeoLocation) msg += ` (geo-targeted for ${selectedGeoLocation.name})`;
             alert(`${msg} Switching to Scanner...`);
             document.querySelector('.menu-item[onclick*="scanner"]').click();
         } else {
@@ -170,7 +274,7 @@ async function generateDomains() {
     }
 }
 
-// ── Scanner ───────────────────────────────────────────────────
+// ── Scanner ─────────────────────────────────────────────────────
 async function checkDomains() {
     const input = document.getElementById('domainInput').value.trim();
     if (!input) { alert('⚠️ Please enter domains to check'); return; }
@@ -276,7 +380,7 @@ async function addToMonitoring(domain) {
     }
 }
 
-// ── Monitoring ────────────────────────────────────────────────
+// ── Monitoring ──────────────────────────────────────────────────
 async function loadMonitoring() {
     try {
         const keyword   = document.getElementById('monitorKeyword')?.value   || '';
@@ -353,7 +457,7 @@ async function removeFromMonitoring(domain) {
     } catch { showToast('❌ Error removing domain', 'error'); }
 }
 
-// ── Expiring Domains ───────────────────────────────────────────────
+// ── Expiring Domains ────────────────────────────────────────────
 async function loadExpiring(maxDays) {
     try {
         const res  = await fetch(`${API}/expiring?maxDays=${maxDays}`);
@@ -404,7 +508,7 @@ function displayExpiring(domains) {
     container.innerHTML = html;
 }
 
-// ── Portfolio ──────────────────────────────────────────────────
+// ── Portfolio ───────────────────────────────────────────────────
 async function loadPortfolio() {
     try { const res = await fetch(`${API}/portfolio`); displayPortfolio(await res.json()); } catch {}
 }
@@ -468,7 +572,7 @@ async function removeFromPortfolio(id) {
     } catch { showToast('❌ Error removing from portfolio', 'error'); }
 }
 
-// ── Sales / Profit ───────────────────────────────────────────────
+// ── Sales / Profit ──────────────────────────────────────────────
 async function addSale() {
     const domain    = document.getElementById('saleDomain').value.trim();
     const buyPrice  = parseFloat(document.getElementById('saleBuyPrice').value);
@@ -520,7 +624,7 @@ async function loadProfitAnalytics(period) {
     } catch {}
 }
 
-// ── Config / Settings ──────────────────────────────────────────────
+// ── Config / Settings ───────────────────────────────────────────
 async function loadConfig() {
     try {
         const res    = await fetch(`${API}/config`);
@@ -583,7 +687,7 @@ async function testConnection(provider) {
     }
 }
 
-// ── Toast notification ──────────────────────────────────────────────
+// ── Toast notification ──────────────────────────────────────────
 function showToast(message, type = 'success') {
     const existing = document.getElementById('toast-notification');
     if (existing) existing.remove();
