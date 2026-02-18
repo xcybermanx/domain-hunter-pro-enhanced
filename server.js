@@ -46,7 +46,7 @@ const DEFAULT_CONFIG = {
         local:       { enabled: false, model: 'qwen2.5:3b', endpoint: 'http://localhost:11434/api/generate' },
         openai:      { enabled: false, apiKey: '', model: 'gpt-3.5-turbo' },
         claude:      { enabled: false, apiKey: '', model: 'claude-3-haiku-20240307' },
-        perplexity:  { enabled: false, apiKey: '', model: 'llama-3.1-sonar-small-128k-online' },
+        perplexity:  { enabled: false, apiKey: '', model: 'sonar' },
         grok:        { enabled: false, apiKey: '', model: 'grok-beta' }
     }
 };
@@ -128,7 +128,7 @@ madridpro.io`;
             const r = await axios.post('https://api.anthropic.com/v1/messages', { model: providerCfg.model || 'claude-3-haiku-20240307', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }, { headers: { 'x-api-key': providerCfg.apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, timeout: 60000 });
             responseText = r.data?.content?.[0]?.text || '';
         } else if (provider === 'perplexity') {
-            const r = await axios.post('https://api.perplexity.ai/chat/completions', { model: providerCfg.model || 'llama-3.1-sonar-small-128k-online', messages: [{ role: 'user', content: prompt }] }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
+            const r = await axios.post('https://api.perplexity.ai/chat/completions', { model: providerCfg.model || 'sonar', messages: [{ role: 'user', content: prompt }] }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
             responseText = r.data?.choices?.[0]?.message?.content || '';
         } else if (provider === 'grok') {
             const r = await axios.post('https://api.x.ai/v1/chat/completions', { model: providerCfg.model || 'grok-beta', messages: [{ role: 'user', content: prompt }], max_tokens: 800 }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
