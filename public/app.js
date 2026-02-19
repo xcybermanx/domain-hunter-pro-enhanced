@@ -103,7 +103,7 @@ function navigate(page) {
     else if (page === 'portfolio')  loadPortfolio();
     else if (page === 'settings')   loadConfig();
     else if (page === 'dashboard')  refreshStats();
-    else if (page === 'expiring')   loadExpiring(30);
+    else if (page === 'expiring')   loadExpiring(365);   // ✅ FIX: show ALL domains by default
     else if (page === 'webhooks')   loadWebhooks();
     event.preventDefault();
     return false;
@@ -455,9 +455,11 @@ async function removeFromMonitoring(domain) {
 }
 
 // ═══════════════════════════════════════════════════
-// ── Expiring Domains (FIXED) ────────────────────────
+// ── Expiring Domains ────────────────────────────────
 // ═══════════════════════════════════════════════════
-let currentExpiringFilter = 30;
+// ✅ FIX: Default to 365 so ALL scanned domains with expiration dates appear.
+//    The old default of 30 hid every domain with daysLeft > 30.
+let currentExpiringFilter = 365;
 
 async function loadExpiring(maxDays) {
     currentExpiringFilter = maxDays;
