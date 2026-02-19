@@ -109,30 +109,21 @@ function navigate(page) {
     return false;
 }
 
-// 🔥 FIX: Allow toggling gen type (click same card = deselect)
+// ── Generator Type Selection ────────────────────────
 function selectGenType(type) {
     const clickedCard = document.getElementById(`opt-${type}`);
     if (!clickedCard) return;
-    
-    // If already selected, deselect (optional)
-    if (clickedCard.classList.contains('active')) {
-        // Uncomment next line to allow deselect:
-        // clickedCard.classList.remove('active'); selectedGenType = ''; return;
-    }
-    
-    // Otherwise select this one and deselect others
     document.querySelectorAll('.gen-type-card').forEach(c => c.classList.remove('active'));
     clickedCard.classList.add('active');
     selectedGenType = type;
 }
 
-// 🔥 FIX: Count stepper & preset buttons
+// ── Count stepper & preset buttons ─────────────────
 function stepCount(delta) {
     const el = document.getElementById('genCount');
     if (!el) return;
     const current = parseInt(el.value) || 20;
-    const newVal = Math.max(5, Math.min(100, current + delta));
-    el.value = newVal;
+    el.value = Math.max(5, Math.min(100, current + delta));
 }
 
 function setCount(n) {
@@ -140,20 +131,18 @@ function setCount(n) {
     if (el) el.value = n;
 }
 
-// 🔥 FIX: TLD selection helpers
+// ── TLD helpers ─────────────────────────────────────
 function selectAllTLDs() {
     document.querySelectorAll('.tld-checkbox').forEach(c => c.checked = true);
 }
-
 function clearAllTLDs() {
     document.querySelectorAll('.tld-checkbox').forEach(c => c.checked = false);
 }
-
 function selectPopularTLDs() {
     clearAllTLDs();
     ['.com', '.io', '.ai'].forEach(tld => {
-        const checkbox = document.querySelector(`.tld-checkbox[value="${tld}"]`);
-        if (checkbox) checkbox.checked = true;
+        const cb = document.querySelector(`.tld-checkbox[value="${tld}"]`);
+        if (cb) cb.checked = true;
     });
 }
 
@@ -181,7 +170,6 @@ async function refreshStats() {
         document.getElementById('monitorBadge').textContent     = stats.totalMonitored    || 0;
         document.getElementById('expiringBadge').textContent    = stats.expiring30        || 0;
 
-        // Load top 3 next expiring
         const expRes = await fetch(`${API}/expiring?maxDays=365`, { credentials: 'include' });
         const expData = await expRes.json();
         const top3 = (expData.expiring || []).slice(0, 3);
@@ -193,7 +181,7 @@ async function refreshStats() {
                 const days = d.daysLeft !== null ? d.daysLeft : '?';
                 const expDate = d.expirationDate ? new Date(d.expirationDate).toLocaleDateString() : 'N/A';
                 const color = days <= 7 ? '#ef4444' : days <= 30 ? '#f59e0b' : '#10b981';
-                return `<div class="domain-card-clickable" onclick="document.querySelector('.menu-item[onclick*=\\"expiring\\"]').click()" style="background:linear-gradient(135deg,rgba(255,255,255,0.95),rgba(255,255,255,0.9));backdrop-filter:blur(10px);padding:20px;border-radius:16px;box-shadow:0 5px 20px rgba(0,0,0,0.1);border-left:4px solid ${color};cursor:pointer;transition:transform 0.2s;">
+                return `<div style="background:linear-gradient(135deg,rgba(255,255,255,0.95),rgba(255,255,255,0.9));backdrop-filter:blur(10px);padding:20px;border-radius:16px;box-shadow:0 5px 20px rgba(0,0,0,0.1);border-left:4px solid ${color};cursor:pointer;transition:transform 0.2s;" onclick="document.querySelector('.menu-item[onclick*=&quot;expiring&quot;]').click()">
                     <div style="font-size:14px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">📍 Domain</div>
                     <div style="font-size:18px;font-weight:800;color:#1e293b;margin-bottom:12px;word-break:break-all;">${d.domain}</div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -224,9 +212,7 @@ async function generateDomains() {
     const allowHyphens= document.getElementById('allowHyphens').checked;
 
     if (tlds.length === 0) { alert('⚠️ Please select at least one TLD extension'); return; }
-    
     let kwArray = keywords ? keywords.split(',').map(k => k.trim()).filter(Boolean) : [];
-    
     if (kwArray.length === 0) {
         const go = confirm('⚠️ No keywords entered — the generator will use generic words.\n\nFor better results, enter keywords like "tech, digital, agency".\n\nContinue anyway?');
         if (!go) return;
@@ -244,22 +230,12 @@ async function generateDomains() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ 
-                type: selectedGenType, 
-                keywords: kwArray.join(','), 
-                count, 
-                useLLM, 
-                tlds, 
-                minLength, 
-                maxLength, 
-                allowNumbers, 
-                allowHyphens
-            })
+            body: JSON.stringify({ type: selectedGenType, keywords: kwArray.join(','), count, useLLM, tlds, minLength, maxLength, allowNumbers, allowHyphens })
         });
         const data = await res.json();
         if (data.domains && data.domains.length > 0) {
             document.getElementById('domainInput').value = data.domains.join('\n');
-            let msg = data.usedLLM ? `🤖 AI generated ${data.count} domains!` : `⚡ Generated ${data.count} domains!`;
+            const msg = data.usedLLM ? `🤖 AI generated ${data.count} domains!` : `⚡ Generated ${data.count} domains!`;
             alert(`${msg} Switching to Scanner...`);
             document.querySelector('.menu-item[onclick*="scanner"]').click();
         } else {
@@ -478,46 +454,154 @@ async function removeFromMonitoring(domain) {
     } catch { showToast('❌ Error removing domain', 'error'); }
 }
 
-// ── Expiring Domains ────────────────────────────────
+// ═══════════════════════════════════════════════════
+// ── Expiring Domains (FIXED) ────────────────────────
+// ═══════════════════════════════════════════════════
+let currentExpiringFilter = 30;
+
 async function loadExpiring(maxDays) {
+    currentExpiringFilter = maxDays;
+
+    // Highlight active filter button
+    document.querySelectorAll('.expiring-filter-btn').forEach(b => b.classList.remove('active-filter'));
+    const activeBtn = document.querySelector(`.expiring-filter-btn[data-days="${maxDays}"]`);
+    if (activeBtn) activeBtn.classList.add('active-filter');
+
+    const container = document.getElementById('expiringResults');
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;"><i class="fas fa-spinner fa-spin" style="font-size:32px;color:#6366f1;"></i><p style="margin-top:12px;">Loading expiring domains...</p></div>';
+
     try {
         const res  = await fetch(`${API}/expiring?maxDays=${maxDays}`, { credentials: 'include' });
         const data = await res.json();
-        displayExpiring(data.expiring || []);
+        displayExpiring(data.expiring || [], maxDays);
     } catch {
-        document.getElementById('expiringResults').innerHTML = '<div class="empty-state"><p>Failed to load expiring domains</p></div>';
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle" style="color:#ef4444;"></i><p>Failed to load expiring domains</p></div>';
     }
 }
 
-function displayExpiring(domains) {
+function displayExpiring(domains, maxDays) {
     const container = document.getElementById('expiringResults');
+
     if (!domains || domains.length === 0) {
-        container.innerHTML = '<div class="empty-state"><i class="fas fa-check-circle" style="color:#10b981;"></i><p>No domains expiring in this range</p></div>';
+        container.innerHTML = `
+            <div style="text-align:center;padding:50px 20px;">
+                <div style="font-size:64px;margin-bottom:20px;">⏰</div>
+                <h3 style="color:#1e293b;margin:0 0 10px;font-size:22px;">No Expiring Domains Found</h3>
+                <p style="color:#6b7280;margin:0 0 30px;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.7;">
+                    Expiring domains appear here after you scan registered domains in the
+                    <strong>Scanner</strong>. Domains with RDAP/WHOIS expiration data will
+                    automatically show up.
+                </p>
+                <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+                    <button class="btn btn-primary" style="padding:12px 24px;" onclick="document.querySelector('.menu-item[onclick*=&quot;scanner&quot;]').click()">
+                        <i class="fas fa-search"></i> Go to Scanner
+                    </button>
+                    <button class="btn btn-secondary" style="padding:12px 24px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;" onclick="loadDemoExpiring()">
+                        <i class="fas fa-flask"></i> Load Demo Data
+                    </button>
+                </div>
+                <p style="color:#9ca3af;font-size:12px;margin-top:20px;">
+                    💡 Tip: Demo data loads 10 sample expiring domains so you can explore the UI.
+                </p>
+            </div>`;
         return;
     }
-    let html = `<table>
-        <thead><tr>
-            <th>Domain</th><th>Status</th><th>Registrar</th>
-            <th>Expiration</th><th>Days Left</th><th>Method</th>
-        </tr></thead><tbody>`;
+
+    // Summary bar
+    const urgent   = domains.filter(d => d.daysLeft <= 7).length;
+    const soon     = domains.filter(d => d.daysLeft > 7 && d.daysLeft <= 30).length;
+    const moderate = domains.filter(d => d.daysLeft > 30).length;
+
+    let html = `
+        <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:120px;background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(239,68,68,0.05));border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:16px;text-align:center;">
+                <div style="font-size:28px;font-weight:800;color:#ef4444;">${urgent}</div>
+                <div style="font-size:12px;color:#6b7280;font-weight:600;">🚨 Critical (≤7d)</div>
+            </div>
+            <div style="flex:1;min-width:120px;background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(245,158,11,0.05));border:1px solid rgba(245,158,11,0.2);border-radius:12px;padding:16px;text-align:center;">
+                <div style="font-size:28px;font-weight:800;color:#f59e0b;">${soon}</div>
+                <div style="font-size:12px;color:#6b7280;font-weight:600;">⚠️ Soon (8-30d)</div>
+            </div>
+            <div style="flex:1;min-width:120px;background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(16,185,129,0.05));border:1px solid rgba(16,185,129,0.2);border-radius:12px;padding:16px;text-align:center;">
+                <div style="font-size:28px;font-weight:800;color:#10b981;">${moderate}</div>
+                <div style="font-size:12px;color:#6b7280;font-weight:600;">✅ Moderate (>30d)</div>
+            </div>
+            <div style="flex:1;min-width:120px;background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(99,102,241,0.05));border:1px solid rgba(99,102,241,0.2);border-radius:12px;padding:16px;text-align:center;">
+                <div style="font-size:28px;font-weight:800;color:#6366f1;">${domains.length}</div>
+                <div style="font-size:12px;color:#6b7280;font-weight:600;">📋 Total shown</div>
+            </div>
+        </div>
+        <table>
+            <thead><tr>
+                <th>Domain</th>
+                <th>Status</th>
+                <th>Registrar</th>
+                <th>Expires</th>
+                <th>Days Left</th>
+                <th>Urgency</th>
+                <th>Method</th>
+            </tr></thead><tbody>`;
+
     domains.forEach(d => {
         const status = d.available === true
             ? '<span class="badge badge-success">✓ Available</span>'
-            : '<span class="badge badge-danger">✗ Taken</span>';
+            : d.available === false
+                ? '<span class="badge badge-danger">✗ Taken</span>'
+                : '<span class="badge" style="background:#9ca3af">? Unknown</span>';
         const exp  = d.expirationDate ? new Date(d.expirationDate).toLocaleDateString() : 'N/A';
-        const days = d.daysLeft !== null ? d.daysLeft : '?';
-        const daysColor = days <= 7 ? '#ef4444' : days <= 30 ? '#f59e0b' : '#10b981';
-        html += `<tr>
+        const days = d.daysLeft !== null && d.daysLeft !== undefined ? d.daysLeft : '?';
+
+        let urgencyBadge, daysColor, rowBg;
+        if (typeof days === 'number' && days <= 7) {
+            urgencyBadge = '<span style="background:#ef4444;color:white;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">🚨 Critical</span>';
+            daysColor = '#ef4444';
+            rowBg = 'background:rgba(239,68,68,0.03);';
+        } else if (typeof days === 'number' && days <= 30) {
+            urgencyBadge = '<span style="background:#f59e0b;color:white;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">⚠️ Soon</span>';
+            daysColor = '#f59e0b';
+            rowBg = 'background:rgba(245,158,11,0.03);';
+        } else {
+            urgencyBadge = '<span style="background:#10b981;color:white;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">✅ OK</span>';
+            daysColor = '#10b981';
+            rowBg = '';
+        }
+
+        html += `<tr style="${rowBg}">
             <td><strong>${d.domain}</strong></td>
             <td>${status}</td>
             <td>${d.registrar || 'N/A'}</td>
             <td>${exp}</td>
-            <td style="color:${daysColor};font-weight:800;font-size:16px;">${days}d</td>
+            <td style="color:${daysColor};font-weight:800;font-size:18px;">${days}${typeof days === 'number' ? 'd' : ''}</td>
+            <td>${urgencyBadge}</td>
             <td><span style="font-size:11px;color:#6b7280;">${d.method || 'dns'}</span></td>
         </tr>`;
     });
+
     html += '</tbody></table>';
     container.innerHTML = html;
+}
+
+// Load demo expiring domains
+async function loadDemoExpiring() {
+    const btn = event.currentTarget;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+    try {
+        const res = await fetch(`${API}/expiring/demo`, { method: 'POST', credentials: 'include' });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`✅ Loaded ${data.loaded} demo expiring domains!`, 'success');
+            refreshStats();
+            loadExpiring(currentExpiringFilter);
+        } else {
+            alert('❌ Failed to load demo data');
+        }
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-flask"></i> Load Demo Data';
+    }
 }
 
 // ── Webhooks ──────────────────────────────────────
@@ -631,34 +715,21 @@ async function analyzeSEO() {
                 <div class="stats-grid" style="margin-top:20px;">
                     <div class="stat-card gradient-purple">
                         <div class="stat-icon"><i class="fas fa-trophy"></i></div>
-                        <div class="stat-content">
-                            <div class="stat-value">${data.da || 'N/A'}</div>
-                            <div class="stat-label">Domain Authority</div>
-                        </div>
+                        <div class="stat-content"><div class="stat-value">${data.da || 'N/A'}</div><div class="stat-label">Domain Authority</div></div>
                     </div>
                     <div class="stat-card gradient-green">
                         <div class="stat-icon"><i class="fas fa-star"></i></div>
-                        <div class="stat-content">
-                            <div class="stat-value">${data.pa || 'N/A'}</div>
-                            <div class="stat-label">Page Authority</div>
-                        </div>
+                        <div class="stat-content"><div class="stat-value">${data.pa || 'N/A'}</div><div class="stat-label">Page Authority</div></div>
                     </div>
                     <div class="stat-card gradient-gold">
                         <div class="stat-icon"><i class="fas fa-link"></i></div>
-                        <div class="stat-content">
-                            <div class="stat-value">${data.backlinks || 'N/A'}</div>
-                            <div class="stat-label">Backlinks</div>
-                        </div>
+                        <div class="stat-content"><div class="stat-value">${data.backlinks || 'N/A'}</div><div class="stat-label">Backlinks</div></div>
                     </div>
                     <div class="stat-card gradient-red">
                         <div class="stat-icon"><i class="fas fa-globe"></i></div>
-                        <div class="stat-content">
-                            <div class="stat-value">${data.refDomains || 'N/A'}</div>
-                            <div class="stat-label">Referring Domains</div>
-                        </div>
+                        <div class="stat-content"><div class="stat-value">${data.refDomains || 'N/A'}</div><div class="stat-label">Referring Domains</div></div>
                     </div>
-                </div>
-            `;
+                </div>`;
         }
     } catch (err) {
         alert('❌ Error: ' + err.message);
@@ -681,13 +752,7 @@ async function analyzeCompetitors() {
         if (data.results && data.results.length > 0) {
             let html = '<table><thead><tr><th>Domain</th><th>DA</th><th>PA</th><th>Backlinks</th><th>Ref Domains</th></tr></thead><tbody>';
             data.results.forEach(r => {
-                html += `<tr>
-                    <td><strong>${r.domain}</strong></td>
-                    <td>${r.da || 'N/A'}</td>
-                    <td>${r.pa || 'N/A'}</td>
-                    <td>${r.backlinks || 'N/A'}</td>
-                    <td>${r.refDomains || 'N/A'}</td>
-                </tr>`;
+                html += `<tr><td><strong>${r.domain}</strong></td><td>${r.da || 'N/A'}</td><td>${r.pa || 'N/A'}</td><td>${r.backlinks || 'N/A'}</td><td>${r.refDomains || 'N/A'}</td></tr>`;
             });
             html += '</tbody></table>';
             container.innerHTML = html;
@@ -710,24 +775,13 @@ function displayPortfolio(portfolio) {
         container.innerHTML = '<div class="empty-state"><i class="fas fa-briefcase"></i><p>Portfolio is empty</p></div>';
         return;
     }
-    let html = `<table>
-        <thead><tr>
-            <th>Domain</th><th>Price</th><th>Registrar</th><th>Notes</th><th>Added</th><th>Action</th>
-        </tr></thead><tbody>`;
+    let html = `<table><thead><tr><th>Domain</th><th>Price</th><th>Registrar</th><th>Notes</th><th>Added</th><th>Action</th></tr></thead><tbody>`;
     portfolio.forEach(p => {
-        const date  = new Date(p.dateAdded).toLocaleDateString();
+        const date   = new Date(p.dateAdded).toLocaleDateString();
         const safeId = p.id.replace(/'/g, "\\'");
         html += `<tr>
-            <td><strong>${p.domain}</strong></td>
-            <td>$${p.price}</td>
-            <td>${p.registrar || 'N/A'}</td>
-            <td>${p.notes || '-'}</td>
-            <td>${date}</td>
-            <td>
-                <button class="btn" style="padding:4px 10px;font-size:12px;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.3);border-radius:6px;cursor:pointer;" onclick="removeFromPortfolio('${safeId}')">
-                    <i class="fas fa-trash"></i> Remove
-                </button>
-            </td>
+            <td><strong>${p.domain}</strong></td><td>$${p.price}</td><td>${p.registrar || 'N/A'}</td><td>${p.notes || '-'}</td><td>${date}</td>
+            <td><button class="btn" style="padding:4px 10px;font-size:12px;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.3);border-radius:6px;cursor:pointer;" onclick="removeFromPortfolio('${safeId}')"><i class="fas fa-trash"></i> Remove</button></td>
         </tr>`;
     });
     html += '</tbody></table>';
@@ -832,7 +886,6 @@ async function loadConfig() {
             const k = document.getElementById(`${p}Key`);     if (k) k.value   = cfg.apiKey  || '';
             const m = document.getElementById(`${p}Model`);   if (m && cfg.model) m.value = cfg.model;
         });
-        // Load SEO config
         const seo = config.seo || {};
         if (document.getElementById('mozApiKey'))     document.getElementById('mozApiKey').value     = seo.mozApiKey     || '';
         if (document.getElementById('mozApiSecret'))  document.getElementById('mozApiSecret').value  = seo.mozApiSecret  || '';
@@ -864,15 +917,15 @@ async function saveSEOConfig() {
     const res = await fetch(`${API}/config`, { credentials: 'include' });
     const config = await res.json();
     config.seo = {
-        mozApiKey: document.getElementById('mozApiKey').value.trim(),
+        mozApiKey:    document.getElementById('mozApiKey').value.trim(),
         mozApiSecret: document.getElementById('mozApiSecret').value.trim(),
         ahrefsApiKey: document.getElementById('ahrefsApiKey').value.trim()
     };
-    try { 
-        await fetch(`${API}/config`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(config) }); 
-        showToast('✅ SEO Config saved!', 'success'); 
-    } catch { 
-        alert('❌ Save failed'); 
+    try {
+        await fetch(`${API}/config`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(config) });
+        showToast('✅ SEO Config saved!', 'success');
+    } catch {
+        alert('❌ Save failed');
     }
 }
 
