@@ -1,4 +1,4 @@
-// Domain Hunter Pro — Frontend JS v3.0
+// Domain Hunter Pro — Frontend JS v3.1
 const API = '/api';
 let selectedGenType = 'business';
 let currentUser = null;
@@ -103,7 +103,7 @@ function navigate(page) {
     else if (page === 'portfolio')  loadPortfolio();
     else if (page === 'settings')   loadConfig();
     else if (page === 'dashboard')  refreshStats();
-    else if (page === 'expiring')   loadExpiring(365);   // ✅ FIX: show ALL domains by default
+    else if (page === 'expiring')   loadExpiring(365);
     else if (page === 'webhooks')   loadWebhooks();
     event.preventDefault();
     return false;
@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const today = new Date().toISOString().split('T')[0];
     if (document.getElementById('saleBuyDate'))  document.getElementById('saleBuyDate').value  = today;
     if (document.getElementById('saleSellDate')) document.getElementById('saleSellDate').value = today;
-    console.log('🎯 Domain Hunter Pro v3.0 initialized');
+    console.log('🎯 Domain Hunter Pro v3.1 initialized');
 });
 
 // ── Stats ─────────────────────────────────────────
@@ -457,14 +457,12 @@ async function removeFromMonitoring(domain) {
 // ═══════════════════════════════════════════════════
 // ── Expiring Domains ────────────────────────────────
 // ═══════════════════════════════════════════════════
-// ✅ FIX: Default to 365 so ALL scanned domains with expiration dates appear.
-//    The old default of 30 hid every domain with daysLeft > 30.
 let currentExpiringFilter = 365;
+let allExpiringDomains = [];
 
 async function loadExpiring(maxDays) {
     currentExpiringFilter = maxDays;
 
-    // Highlight active filter button
     document.querySelectorAll('.expiring-filter-btn').forEach(b => b.classList.remove('active-filter'));
     const activeBtn = document.querySelector(`.expiring-filter-btn[data-days="${maxDays}"]`);
     if (activeBtn) activeBtn.classList.add('active-filter');
@@ -475,10 +473,193 @@ async function loadExpiring(maxDays) {
     try {
         const res  = await fetch(`${API}/expiring?maxDays=${maxDays}`, { credentials: 'include' });
         const data = await res.json();
-        displayExpiring(data.expiring || [], maxDays);
+        allExpiringDomains = data.expiring || [];
+        applyExpiringSearch();
     } catch {
         container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle" style="color:#ef4444;"></i><p>Failed to load expiring domains</p></div>';
     }
+}
+
+// ── Expiring Search / Filter ────────────────────────
+function applyExpiringSearch() {
+    const keyword = (document.getElementById('expiringSearch')?.value || '').toLowerCase().trim();
+    const urgency = document.getElementById('expiringUrgencyFilter')?.value || '';
+
+    let filtered = allExpiringDomains;
+
+    if (keyword) {
+        filtered = filtered.filter(d => d.domain.toLowerCase().includes(keyword));
+    }
+
+    if (urgency === 'critical') {
+        filtered = filtered.filter(d => d.daysLeft !== null && d.daysLeft <= 7);
+    } else if (urgency === 'soon') {
+        filtered = filtered.filter(d => d.daysLeft !== null && d.daysLeft > 7 && d.daysLeft <= 30);
+    } else if (urgency === 'moderate') {
+        filtered = filtered.filter(d => d.daysLeft !== null && d.daysLeft > 30);
+    }
+
+    displayExpiring(filtered, currentExpiringFilter);
+}
+
+function clearExpiringSearch() {
+    const s = document.getElementById('expiringSearch');
+    const u = document.getElementById('expiringUrgencyFilter');
+    if (s) s.value = '';
+    if (u) u.value = '';
+    displayExpiring(allExpiringDomains, currentExpiringFilter);
+}
+
+// ── Add from Monitoring to Expiring ────────────────
+async function addFromMonitoringToExpiring() {
+    try {
+        const res  = await fetch(`${API}/monitoring/filter?`, { credentials: 'include' });
+        const data = await res.json();
+        const monitored = data.monitoring || data || [];
+
+        if (monitored.length === 0) {
+            showToast('ℹ️ No monitored domains found', 'info');
+            return;
+        }
+
+        // Build a quick-pick modal
+        const existing = document.getElementById('addFromMonitorModal');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'addFromMonitorModal';
+        modal.style.cssText = `
+            position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);
+            display:flex;align-items:center;justify-content:center;padding:20px;`;
+
+        const rows = monitored.map(m => {
+            const exp  = m.expirationDate ? new Date(m.expirationDate).toLocaleDateString() : 'N/A';
+            const days = m.daysLeft !== null && m.daysLeft !== undefined ? `${m.daysLeft}d` : 'N/A';
+            const safeD = m.domain.replace(/'/g, "\\'");
+            return `<tr>
+                <td><strong>${m.domain}</strong></td>
+                <td>${exp}</td>
+                <td>${days}</td>
+                <td>
+                    <button class="btn btn-primary" style="padding:4px 12px;font-size:12px;"
+                        onclick="confirmAddToExpiring('${safeD}')">
+                        <i class="fas fa-plus"></i> Add
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        modal.innerHTML = `
+            <div style="background:#fff;border-radius:20px;padding:30px;max-width:680px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                    <h3 style="margin:0;font-size:20px;font-weight:800;color:#1e293b;">
+                        📋 Add from Monitoring
+                    </h3>
+                    <button onclick="document.getElementById('addFromMonitorModal').remove()"
+                        style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280;">✕</button>
+                </div>
+                <p style="color:#6b7280;margin:0 0 16px;font-size:14px;">
+                    Select a monitored domain to manually add it to the Expiring list for tracking.
+                </p>
+                <table>
+                    <thead><tr><th>Domain</th><th>Expires</th><th>Days Left</th><th>Action</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>`;
+
+        document.body.appendChild(modal);
+        modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+    } catch (err) {
+        showToast('❌ Failed to load monitoring list', 'error');
+    }
+}
+
+async function confirmAddToExpiring(domain) {
+    try {
+        // Re-check the domain so it appears in expiring results
+        const res  = await fetch(`${API}/check-domains`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ domains: [domain] })
+        });
+        const data = await res.json();
+        document.getElementById('addFromMonitorModal')?.remove();
+        showToast(`✅ "${domain}" refreshed and added to Expiring!`, 'success');
+        loadExpiring(currentExpiringFilter);
+        refreshStats();
+    } catch {
+        showToast('❌ Error adding domain', 'error');
+    }
+}
+
+// ── Domain Detail Modal ─────────────────────────────
+function openDomainModal(domain, registrar, expirationDate, daysLeft, method, available) {
+    const existing = document.getElementById('domainDetailModal');
+    if (existing) existing.remove();
+
+    const exp    = expirationDate && expirationDate !== 'null' ? new Date(expirationDate).toLocaleDateString() : 'N/A';
+    const days   = daysLeft !== null && daysLeft !== 'null' ? daysLeft : '?';
+    const avail  = available === 'true' ? '✓ Available' : available === 'false' ? '✗ Taken' : '? Unknown';
+    const availColor = available === 'true' ? '#10b981' : available === 'false' ? '#ef4444' : '#9ca3af';
+    const color  = typeof days === 'number' && days <= 7 ? '#ef4444'
+                 : typeof days === 'number' && days <= 30 ? '#f59e0b' : '#10b981';
+    const whoisUrl = `https://www.whois.com/whois/${domain}`;
+
+    const modal = document.createElement('div');
+    modal.id = 'domainDetailModal';
+    modal.style.cssText = `
+        position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);
+        display:flex;align-items:center;justify-content:center;padding:20px;`;
+
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:20px;padding:32px;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+                <h3 style="margin:0;font-size:22px;font-weight:800;color:#1e293b;">🌐 Domain Info</h3>
+                <button onclick="document.getElementById('domainDetailModal').remove()"
+                    style="background:none;border:none;font-size:24px;cursor:pointer;color:#6b7280;">✕</button>
+            </div>
+            <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:14px;padding:20px;margin-bottom:20px;color:#fff;">
+                <div style="font-size:11px;opacity:0.8;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Domain Name</div>
+                <div style="font-size:24px;font-weight:800;word-break:break-all;">${domain}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+                <div style="background:#f8fafc;border-radius:12px;padding:16px;">
+                    <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Status</div>
+                    <div style="font-size:16px;font-weight:700;color:${availColor};">${avail}</div>
+                </div>
+                <div style="background:#f8fafc;border-radius:12px;padding:16px;">
+                    <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Days Left</div>
+                    <div style="font-size:28px;font-weight:800;color:${color};">${days}${typeof days === 'number' ? 'd' : ''}</div>
+                </div>
+                <div style="background:#f8fafc;border-radius:12px;padding:16px;">
+                    <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Registrar</div>
+                    <div style="font-size:14px;font-weight:600;color:#1e293b;">${registrar || 'N/A'}</div>
+                </div>
+                <div style="background:#f8fafc;border-radius:12px;padding:16px;">
+                    <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Expires</div>
+                    <div style="font-size:14px;font-weight:600;color:#1e293b;">${exp}</div>
+                </div>
+                <div style="background:#f8fafc;border-radius:12px;padding:16px;grid-column:1/-1;">
+                    <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Check Method</div>
+                    <div style="font-size:14px;font-weight:600;color:#6366f1;">${method || 'dns'}</div>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;">
+                <a href="${whoisUrl}" target="_blank" rel="noopener"
+                    style="flex:1;display:block;text-align:center;padding:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-radius:10px;font-weight:700;text-decoration:none;">
+                    🔍 WHOIS Lookup
+                </a>
+                <button onclick="addToMonitoring('${domain.replace(/'/g, "\\'")}');document.getElementById('domainDetailModal').remove();"
+                    style="flex:1;padding:12px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;">
+                    👁️ Monitor
+                </button>
+            </div>
+        </div>`;
+
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
 
 function displayExpiring(domains, maxDays) {
@@ -509,7 +690,6 @@ function displayExpiring(domains, maxDays) {
         return;
     }
 
-    // Summary bar
     const urgent   = domains.filter(d => d.daysLeft <= 7).length;
     const soon     = domains.filter(d => d.daysLeft > 7 && d.daysLeft <= 30).length;
     const moderate = domains.filter(d => d.daysLeft > 30).length;
@@ -568,8 +748,13 @@ function displayExpiring(domains, maxDays) {
             rowBg = '';
         }
 
-        html += `<tr style="${rowBg}">
-            <td><strong>${d.domain}</strong></td>
+        const safeD   = d.domain.replace(/'/g, "\\'");
+        const safeReg = (d.registrar || 'N/A').replace(/'/g, "\\'");
+        const safeExp = (d.expirationDate || 'null').replace(/'/g, "\\'");
+        const safeAvail = String(d.available);
+
+        html += `<tr style="${rowBg};cursor:pointer;" onclick="openDomainModal('${safeD}','${safeReg}','${safeExp}','${days}','${d.method || 'dns'}','${safeAvail}')">
+            <td><strong style="color:#6366f1;">${d.domain}</strong></td>
             <td>${status}</td>
             <td>${d.registrar || 'N/A'}</td>
             <td>${exp}</td>
