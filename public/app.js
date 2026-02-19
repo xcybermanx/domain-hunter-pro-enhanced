@@ -3,7 +3,7 @@ const API = '/api';
 let selectedGenType = 'business';
 let currentUser = null;
 
-// ── Authentication ──────────────────────────────────────
+// ── Authentication ──────────────────────────────────
 function checkAuth() {
     fetch(`${API}/auth/me`, { credentials: 'include' })
         .then(r => r.ok ? r.json() : Promise.reject())
@@ -109,11 +109,52 @@ function navigate(page) {
     return false;
 }
 
+// 🔥 FIX: Allow toggling gen type (click same card = deselect)
 function selectGenType(type) {
+    const clickedCard = document.getElementById(`opt-${type}`);
+    if (!clickedCard) return;
+    
+    // If already selected, deselect (optional)
+    if (clickedCard.classList.contains('active')) {
+        // Uncomment next line to allow deselect:
+        // clickedCard.classList.remove('active'); selectedGenType = ''; return;
+    }
+    
+    // Otherwise select this one and deselect others
+    document.querySelectorAll('.gen-type-card').forEach(c => c.classList.remove('active'));
+    clickedCard.classList.add('active');
     selectedGenType = type;
-    document.querySelectorAll('.option-card').forEach(c => c.classList.remove('active'));
-    const el = document.getElementById(`opt-${type}`);
-    if (el) el.classList.add('active');
+}
+
+// 🔥 FIX: Count stepper & preset buttons
+function stepCount(delta) {
+    const el = document.getElementById('genCount');
+    if (!el) return;
+    const current = parseInt(el.value) || 20;
+    const newVal = Math.max(5, Math.min(100, current + delta));
+    el.value = newVal;
+}
+
+function setCount(n) {
+    const el = document.getElementById('genCount');
+    if (el) el.value = n;
+}
+
+// 🔥 FIX: TLD selection helpers
+function selectAllTLDs() {
+    document.querySelectorAll('.tld-checkbox').forEach(c => c.checked = true);
+}
+
+function clearAllTLDs() {
+    document.querySelectorAll('.tld-checkbox').forEach(c => c.checked = false);
+}
+
+function selectPopularTLDs() {
+    clearAllTLDs();
+    ['.com', '.io', '.ai'].forEach(tld => {
+        const checkbox = document.querySelector(`.tld-checkbox[value="${tld}"]`);
+        if (checkbox) checkbox.checked = true;
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {

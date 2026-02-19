@@ -195,41 +195,62 @@ const FALLBACK_BIZ_WORDS = ['pro', 'hub', 'zone', 'digital', 'tech', 'shop', 'ma
 const BIZ_PREFIXES = ['best', 'top', 'pro', 'my', 'get', 'go', 'the', 'smart', 'fast', 'easy', 'real', 'true', 'next', 'open', 'peak', 'core', 'bold', 'nova', 'apex', 'flux'];
 const BIZ_INDUSTRY_WORDS = ['tech', 'digital', 'shop', 'market', 'hub', 'zone', 'app', 'cloud', 'online', 'agency', 'media', 'studio', 'labs', 'works', 'desk', 'link', 'base', 'point', 'gate', 'space', 'mind', 'brand', 'scale', 'shift', 'flow', 'forge', 'pulse', 'spark', 'rise', 'edge'];
 
-// ── LLM-Powered Generator ───────────────────────────────────────
+// ── LLM-Powered Generator (FIXED) ───────────────────────────────
 async function generateWithLLM(keywords, type, count, tlds) {
     const config = readConfig();
     const llmCfg = config.llm || {};
     const provider = llmCfg.provider || 'local';
     const providerCfg = llmCfg[provider] || {};
+    
+    // 🔥 FIX: Check if provider is enabled before attempting
+    if (!providerCfg.enabled) {
+        console.log(`⚠️ LLM provider "${provider}" is not enabled in settings`);
+        return null;
+    }
+    
     const tldList = tlds.join(', ');
     const kwStr = keywords.length > 0 ? keywords.join(', ') : 'general business';
-    const style = type === 'business' ? 'creative business domain names (professional, brandable)' : 'a mix of creative and industry-focused domain names';
+    const style = type === 'business' ? 'creative business domain names (professional, brandable)' : type === 'geo' ? 'location-based geo domain names' : 'a mix of creative and industry-focused domain names';
     const prompt = `Generate exactly ${count} unique, creative, and brandable domain names.\n\nRequirements:\n- Keywords to focus on: ${kwStr}\n- Style: ${style}\n- Use ONLY these TLD extensions: ${tldList}\n- Each domain must be unique, memorable, and professional\n- Incorporate the keywords naturally into the domain names\n- Mix different patterns: keyword+word, word+keyword, abbreviations, creative combinations\n- NO generic random combinations — every domain should feel intentional and marketable\n\nOutput ONLY a plain list of domains, one per line, no numbering, no explanation, no extra text.\nExample format:\nmadridpro.io\ndigitalagency.com\nbrandflow.app`;
+    
+    console.log(`🤖 Attempting LLM generation with ${provider} (${providerCfg.model || 'default'})`);
     
     try {
         let responseText = '';
         if (provider === 'local') {
-            const r = await axios.post(providerCfg.endpoint || 'http://localhost:11434/api/generate', { model: providerCfg.model || 'qwen2.5:3b', prompt, stream: false }, { timeout: 60000 });
+            const endpoint = providerCfg.endpoint || 'http://localhost:11434/api/generate';
+            const model = providerCfg.model || 'qwen2.5:3b';
+            const r = await axios.post(endpoint, { model, prompt, stream: false }, { timeout: 60000 });
             responseText = r.data?.response || '';
         } else if (provider === 'openai') {
+            if (!providerCfg.apiKey) throw new Error('OpenAI API key not configured');
             const r = await axios.post('https://api.openai.com/v1/chat/completions', { model: providerCfg.model || 'gpt-3.5-turbo', messages: [{ role: 'user', content: prompt }], max_tokens: 800, temperature: 0.8 }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
             responseText = r.data?.choices?.[0]?.message?.content || '';
         } else if (provider === 'claude') {
+            if (!providerCfg.apiKey) throw new Error('Claude API key not configured');
             const r = await axios.post('https://api.anthropic.com/v1/messages', { model: providerCfg.model || 'claude-3-haiku-20240307', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }, { headers: { 'x-api-key': providerCfg.apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, timeout: 60000 });
             responseText = r.data?.content?.[0]?.text || '';
         } else if (provider === 'perplexity') {
+            if (!providerCfg.apiKey) throw new Error('Perplexity API key not configured');
             const r = await axios.post('https://api.perplexity.ai/chat/completions', { model: providerCfg.model || 'sonar', messages: [{ role: 'user', content: prompt }] }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
             responseText = r.data?.choices?.[0]?.message?.content || '';
         } else if (provider === 'grok') {
+            if (!providerCfg.apiKey) throw new Error('Grok API key not configured');
             const r = await axios.post('https://api.x.ai/v1/chat/completions', { model: providerCfg.model || 'grok-beta', messages: [{ role: 'user', content: prompt }], max_tokens: 800 }, { headers: { Authorization: `Bearer ${providerCfg.apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 });
             responseText = r.data?.choices?.[0]?.message?.content || '';
         }
+        
         const lines = responseText.split(/\n/).map(l => l.trim().toLowerCase().replace(/^[\d.\-)\s]+/, '')).filter(l => /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(l));
+        console.log(`✅ LLM generated ${lines.length} valid domains`);
         if (lines.length >= 3) return lines;
+        else {
+            console.log('⚠️ LLM returned insufficient results, falling back to smart generator');
+            return null;
+        }
     } catch (err) {
-        console.error('LLM generation failed, falling back to smart generator:', err.message);
+        console.error(`❌ LLM generation failed (${provider}):`, err.message);
+        return null;
     }
-    return null;
 }
 
 // ── Smart Keyword-Aware Generator ───────────────────────────────
@@ -686,7 +707,7 @@ app.post('/api/generate-domains', apiLimiter, async (req, res) => {
     }
     let domains = [];
     if (useLLM) {
-        console.log(`🤖 Attempting LLM generation for keywords: [${kwArray.join(', ')}]`);
+        console.log(`🤖 LLM requested for type="${type}", keywords=[${kwArray.join(', ')}]`);
         const llmResult = await generateWithLLM(kwArray, type, targetCount, selectedTLDs);
         if (llmResult && llmResult.length >= 3) {
             domains = llmResult.filter(d => {
@@ -696,13 +717,12 @@ app.post('/api/generate-domains', apiLimiter, async (req, res) => {
                 if (namePart.length < minLen || namePart.length > maxLen) return false;
                 return true;
             }).slice(0, targetCount);
-            console.log(`✅ LLM generated ${domains.length} domains`);
-        } else {
-            console.log('⚠️ LLM returned insufficient results, using smart fallback');
+            console.log(`✅ LLM generated ${domains.length} valid domains`);
         }
     }
     if (domains.length < targetCount) {
         const remaining = targetCount - domains.length;
+        console.log(`⚡ Smart generator filling remaining ${remaining} domains`);
         const smartDomains = generateSmart(kwArray, type, remaining, selectedTLDs, minLen, maxLen, withNumbers, withHyphens);
         domains = [...new Set([...domains, ...smartDomains])].slice(0, targetCount);
     }
@@ -1090,7 +1110,7 @@ app.listen(PORT, () => {
     console.log(`📍 Local:  http://localhost:${PORT}`);
     console.log(`📊 API:    http://localhost:${PORT}/api`);
     console.log(`\n✨ Features:`);
-    console.log(`   - 🔐 Multi-User Authentication`);
+    console.log(`   - 🔐 Multi-User Authentication (DB-backed)`);
     console.log(`   - 🤖 AI Domain Generator with LLM support`);
     console.log(`   - 📅 Scheduled Domain Checking`);
     console.log(`   - 📊 SEO Metrics & Competitor Analysis`);
