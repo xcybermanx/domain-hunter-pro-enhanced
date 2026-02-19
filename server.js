@@ -838,6 +838,46 @@ app.get('/api/expiring', (req, res) => {
     res.json({ expiring, count: expiring.length });
 });
 
+// 🔥 NEW: Load demo expiring domains
+app.post('/api/expiring/demo', (req, res) => {
+    const db = readDB();
+    const now = new Date();
+    
+    // Create demo domains with varying expiration dates
+    const demoDomains = [
+        { domain: 'example-domain-1.com', days: 3, registrar: 'GoDaddy' },
+        { domain: 'tech-startup-pro.io', days: 5, registrar: 'Namecheap' },
+        { domain: 'digital-agency-hub.com', days: 10, registrar: 'Google Domains' },
+        { domain: 'marketing-tools.ai', days: 15, registrar: 'Cloudflare' },
+        { domain: 'dev-portfolio.dev', days: 20, registrar: 'Porkbun' },
+        { domain: 'startup-ideas.co', days: 28, registrar: 'Dynadot' },
+        { domain: 'business-growth.net', days: 45, registrar: 'Name.com' },
+        { domain: 'ecommerce-store.shop', days: 60, registrar: 'GoDaddy' },
+        { domain: 'saas-platform.app', days: 75, registrar: 'Namecheap' },
+        { domain: 'finance-tracker.online', days: 89, registrar: 'Google Domains' }
+    ];
+    
+    demoDomains.forEach(({ domain, days, registrar }) => {
+        const expDate = new Date(now);
+        expDate.setDate(expDate.getDate() + days);
+        
+        db.cache[domain.toLowerCase()] = {
+            domain,
+            available: false,
+            hasDNS: true,
+            expirationDate: expDate.toISOString(),
+            daysLeft: days,
+            registrar,
+            method: 'demo',
+            lastChecked: Date.now()
+        };
+    });
+    
+    writeDB(db);
+    console.log(`✅ Loaded ${demoDomains.length} demo expiring domains`);
+    res.json({ success: true, loaded: demoDomains.length, message: 'Demo domains loaded successfully' });
+});
+
 // ── Portfolio Routes (User-Specific) ────────────────────────────
 
 app.get('/api/portfolio', authenticateToken, (req, res) => {
