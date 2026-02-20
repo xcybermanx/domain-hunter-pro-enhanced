@@ -102,6 +102,23 @@ db.exec(`
   );
 `);
 
+// ── Safe Schema Migrations (idempotent) ─────────────────────────
+// Adds `email` column to users if it was created without it (old DB)
+try {
+  const cols = db.pragma('table_info(users)').map(c => c.name);
+  if (!cols.includes('email')) {
+    db.exec(`ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT '';`);
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);`);
+    console.log('✅ Migration: added email column to users table');
+  }
+  if (!cols.includes('username')) {
+    db.exec(`ALTER TABLE users ADD COLUMN username TEXT NOT NULL DEFAULT '';`);
+    console.log('✅ Migration: added username column to users table');
+  }
+} catch (migErr) {
+  console.warn('⚠️  Migration warning (non-fatal):', migErr.message);
+}
+
 console.log('✅ SQLite database ready:', DB_PATH);
 
 // ── Rate Limiting ───────────────────────────────────────────────
@@ -347,7 +364,7 @@ async function generateWithLLM(keywords, type, count, tlds) {
             const r = await axios.post('https://api.x.ai/v1/chat/completions', { model:providerCfg.model||'grok-beta', messages:[{role:'user',content:prompt}], max_tokens:800 }, { headers:{Authorization:`Bearer ${providerCfg.apiKey}`,'Content-Type':'application/json'}, timeout:60000 });
             responseText = r.data?.choices?.[0]?.message?.content || '';
         }
-        const lines = responseText.split(/\n/).map(l=>l.trim().toLowerCase().replace(/^[\d.\-)\s]+/,'')).filter(l=>/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(l));
+        const lines = responseText.split(/\n/).map(l=>l.trim().toLowerCase().replace(/^[\d.)\-\s]+/,'')).filter(l=>/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(l));
         if (lines.length >= 3) return lines;
         return null;
     } catch (err) { console.error(`LLM error (${provider}):`, err.message); return null; }
